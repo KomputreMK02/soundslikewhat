@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>soundslikewhat — Sample-Manager</title>
+<style>
+  :root{--bg:#0f0f10;--panel:#181818;--panel2:#1f1f21;--line:#2a2a2d;--txt:#f2f2f2;--sub:#9a9a9f;--green:#1DB954;--gold:#e8b93a;--blue:#4f95e6;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt);font-size:14px;-webkit-font-smoothing:antialiased}
+  header{padding:20px 26px 12px;background:linear-gradient(180deg,#241f2e 0%,#0f0f10 100%);border-bottom:1px solid var(--line)}
+  h1{margin:0 0 4px;font-size:25px}
+  .sub{color:var(--sub);font-size:13px;margin-bottom:10px}
+  .stats{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--sub)}
+  .stats b{color:var(--txt)}
+  .toolbar{position:sticky;top:0;z-index:5;display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:11px 26px;background:#141415;border-bottom:1px solid var(--line)}
+  input[type=search]{flex:1;min-width:200px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:9px 12px;border-radius:22px;font-size:14px;outline:none}
+  input[type=search]:focus{border-color:var(--green)}
+  button{background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:8px 12px;border-radius:20px;cursor:pointer;font-size:13px;transition:.15s}
+  button:hover{border-color:#666}
+  button.on{background:var(--green);border-color:var(--green);color:#04210f;font-weight:600}
+  button.primary{background:var(--green);border-color:var(--green);color:#04210f;font-weight:600}
+  .chk{display:flex;align-items:center;gap:6px;color:var(--sub);font-size:12px;user-select:none}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;padding:8px 26px;font-size:11.5px;color:var(--sub);background:#111;border-bottom:1px solid var(--line)}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+  #list{padding:6px 14px 90px}
+  .row{display:grid;grid-template-columns:40px 1fr auto;gap:12px;align-items:center;padding:8px 12px;border-radius:8px;border:1px solid transparent;border-left:4px solid transparent}
+  .row:hover{background:var(--panel)}
+  .row .posw{display:flex;align-items:center;gap:6px;justify-content:flex-end}
+  .row .pos{color:var(--sub);font-variant-numeric:tabular-nums;text-align:right;font-size:13px}
+  .row .title{font-weight:600;line-height:1.25}
+  .row .title .exp{display:inline-block;font-size:9px;background:#555;color:#fff;border-radius:3px;padding:0 3px;margin-left:6px;vertical-align:middle}
+  .row .artist{color:var(--sub);font-size:12.5px;margin-top:1px}
+  .row .right{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+  .row .dur{color:var(--sub);font-size:12px;font-variant-numeric:tabular-nums}
+  .row.sel{background:#12351f;border-color:var(--green)}
+  .row.orig{background:#0e2a19;border-color:#1c5c37}
+  .row.dim{opacity:.42}.row.hidden{display:none}
+  .chip{font-size:10.5px;padding:1px 7px;border-radius:10px;margin-left:6px;vertical-align:middle;white-space:nowrap}
+  .chip.fam{color:#fff}
+  .chip.src{background:#3a2f0c;color:var(--gold);border:1px solid #6d571a}
+  .chip.smp{background:#12294a;color:var(--blue);border:1px solid #274d80}
+  mark{background:var(--green);color:#04210f;border-radius:3px;padding:0 2px}
+  .rolebtn{font-size:11px;padding:3px 8px;border-radius:14px;background:#222;border:1px solid var(--line);color:#bbb;cursor:pointer}
+  .rolebtn.src.act{background:#3a2f0c;color:var(--gold);border-color:#6d571a;font-weight:600}
+  .rolebtn.smp.act{background:#12294a;color:var(--blue);border-color:#274d80;font-weight:600}
+  select.fam{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:12px;padding:4px 6px;font-size:11.5px;max-width:150px}
+  .cbx{width:15px;height:15px;accent-color:var(--green)}
+  .grip{color:#555;cursor:grab}
+  .row.dragging{opacity:.5}.row.dropbefore{box-shadow:inset 0 3px 0 var(--green)}
+  .panel{margin:0 26px 12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:none}
+  .panel h3{margin:0 0 10px;font-size:14px}
+  .fam-card{margin:8px 0;padding:10px 12px;background:var(--panel2);border-radius:8px;border-left:4px solid #666}
+  .fam-card .hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .fam-card .mem{color:var(--sub);font-size:12.5px;margin-top:5px;line-height:1.7}
+  .warn{color:#ffb020}.ok{color:var(--green)}.bad{color:#ff7a90}
+  .mini{color:var(--sub);font-size:12px;line-height:1.7}
+  .sctn{margin:10px 0;padding-top:10px;border-top:1px solid var(--line)}
+  .linkbtn{background:none;border:none;color:var(--blue);cursor:pointer;font-size:12px;padding:0 4px}
+  input.txt{width:100%;max-width:440px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:8px 10px;border-radius:8px;font-size:13px;margin-top:4px;display:block}
+  code{background:#0c0c0d;border:1px solid var(--line);border-radius:6px;padding:3px 7px;font-size:12px;word-break:break-all}
+  .pill{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px}
+  .pill.on{background:#0e2a19;color:var(--green);border:1px solid #1c5c37}
+  .pill.off{background:#2a1414;color:#ff9db3;border:1px solid #5c1c1c}
+  textarea{width:100%;height:220px;background:#0c0c0d;color:#d6d6d6;border:1px solid var(--line);border-radius:8px;padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;resize:vertical}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:20;padding:20px}
+  .modal .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;max-width:720px;width:100%;max-height:86vh;overflow:auto;padding:20px}
+  .tabs{display:flex;gap:6px;margin:10px 0;flex-wrap:wrap}
+  .hint{color:var(--sub);font-size:12px;margin-top:8px;line-height:1.55}
+  .close{float:right}
+  .badgecount{background:#3f6fd1;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px}
+  .savedot{font-size:11px;color:var(--green);margin-left:4px}
+  ol.steps{margin:6px 0 0 18px;padding:0;color:var(--sub);font-size:12.5px;line-height:1.8}
+</style>
+</head>
+<body>
+<header>
+  <h1>soundslikewhat</h1>
+  <div class="sub">Sample-Manager · <span id="srcNote">Prototyp mit 100 Titeln – mit Spotify verbinden für alle 425</span> · von DO|\/|¡AN</div>
+  <div class="stats">
+    <span><b id="stCount">0</b> Titel</span>
+    <span><b id="stFamN">0</b> Familien</span>
+    <span><b id="stSrc">0</b> Originale</span>
+    <span><b id="stSmp">0</b> Sampler</span>
+    <span><b id="stDur">–</b></span>
+    <span id="spPill" class="pill off">Spotify: getrennt</span>
+    <span id="saveState" class="savedot"></span>
+  </div>
+</header>
+
+<div class="toolbar">
+  <input id="q" type="search" placeholder="Suche Titel / Interpret…">
+  <label class="chk"><input type="checkbox" id="ctx" checked> Nachbarn zeigen</label>
+  <button id="btnEdit">Markieren-Modus: aus</button>
+  <button id="btnSort">Sortieren: aus</button>
+  <button id="btnFamPanel">Familien</button>
+  <button id="btnCheck">Prüfen</button>
+  <button id="btnSpotify">Spotify</button>
+  <button id="btnData">Speichern / Laden</button>
+  <button id="btnExport" class="primary">Export</button>
+</div>
+
+<div class="legend">
+  <span><span class="dot" style="background:var(--gold)"></span> Original (wurde gesampled)</span>
+  <span><span class="dot" style="background:var(--blue)"></span> Sampler (enthält ein Sample)</span>
+  <span><span class="dot" style="background:#888"></span> Balken = Familie</span>
+  <span id="editHint" style="display:none"><b>Markieren-Modus:</b> Rollen umschalten · Familie zuweisen · mehrere anhaken → „Auswahl → Familie“</span>
+</div>
+
+<div id="batchbar" class="toolbar" style="display:none;background:#101a12">
+  <span class="chk"><b id="selN">0</b> ausgewählt</span>
+  <button id="bNew">Auswahl → neue Familie</button>
+  <button id="bAdd">Auswahl → bestehende Familie…</button>
+  <button id="bRemove">Auswahl → aus Familie entfernen</button>
+  <button id="bClear">Auswahl leeren</button>
+</div>
+
+<div id="spotifyPanel" class="panel">
+  <h3>Spotify verbinden <span id="spStatusPill" class="pill off" style="float:right">getrennt</span></h3>
+  <div class="hint">Läuft nur über eine gehostete <b>https</b>-Seite (GitHub Pages) oder <code>http://127.0.0.1</code> – nicht per Doppelklick (<code>file://</code>), weil Spotify das aus Sicherheitsgründen blockt. <span id="spEnvWarn" class="bad"></span></div>
+  <div class="sctn">
+    <div class="mini"><b>Einmalige Einrichtung:</b></div>
+    <ol class="steps">
+      <li>Auf <code>developer.spotify.com/dashboard</code> einloggen → „Create app“.</li>
+      <li>Bei „Redirect URIs“ exakt diese URL eintragen: <code id="spRedirect">–</code> <button class="linkbtn" id="spCopyRedir">kopieren</button></li>
+      <li>Unter „User Management“ deine eigene Spotify-E-Mail hinzufügen (Dev-Modus).</li>
+      <li>Client-ID der App kopieren und unten einfügen.</li>
+    </ol>
+  </div>
+  <div class="sctn">
+    <div class="mini">Client-ID:</div><input id="spClient" class="txt" placeholder="z. B. 3f9a…">
+    <div class="mini" style="margin-top:8px">Playlist-ID (du musst Besitzer sein, um zu speichern):</div><input id="spPlaylist" class="txt">
+  </div>
+  <div class="tabs">
+    <button id="spConnect" class="primary">Mit Spotify verbinden</button>
+    <button id="spLoad">Playlist laden ⤓</button>
+    <button id="spSave">Reihenfolge speichern ⤒</button>
+    <button id="spLogout">Trennen</button>
+  </div>
+  <div id="spMsg" class="mini"></div>
+</div>
+
+<div id="famPanel" class="panel"></div>
+<div id="checkPanel" class="panel"></div>
+
+<div id="dataPanel" class="panel">
+  <h3>Markierungen speichern / laden</h3>
+  <div class="hint">Familien &amp; Flags werden automatisch im Browser gespeichert. Für Sicherung / Geräte-Umzug hier als JSON exportieren/importieren.</div>
+  <div class="tabs">
+    <button id="dExport">Markierungen exportieren</button>
+    <button id="dImport" class="primary">Importieren</button>
+    <button id="dWipe">Markierungen löschen</button>
+  </div>
+  <textarea id="dArea" placeholder="Export landet hier – oder JSON einfügen und „Importieren“."></textarea>
+  <div class="hint" id="dMsg"></div>
+</div>
+
+<div id="list"></div>
+
+<div class="modal" id="modal">
+  <div class="box">
+    <button class="close" onclick="closeModal()">Schließen ✕</button>
+    <h3>Reihenfolge exportieren</h3>
+    <div class="tabs">
+      <button class="fmt on" data-f="uri">Track-URIs</button>
+      <button class="fmt" data-f="list">Titel – Interpret</button>
+      <button class="fmt" data-f="full">Mit Familie &amp; Rollen</button>
+      <button class="fmt" data-f="csv">CSV</button>
+      <button class="fmt" data-f="json">JSON</button>
+    </div>
+    <textarea id="exp" readonly style="height:300px"></textarea>
+    <button class="primary" style="margin-top:10px" onclick="copyExp()">Kopieren</button>
+    <span class="hint" id="copied"></span>
+  </div>
+</div>
+
+<script id="data" type="application/json">[{"pos": 1, "title": "Cola Bottle Baby", "artist": "Edwin Birdsong", "id": "7EVDIXEOFAAvzwu6xk0nUz", "dur": "5:07", "explicit": false}, {"pos": 2, "title": "Harder, Better, Faster, Stronger", "artist": "Daft Punk", "id": "5W3cjX2J3tjhG8zb6u0qHn", "dur": "3:46", "explicit": false}, {"pos": 3, "title": "Stronger", "artist": "Kanye West", "id": "0j2T0R9dR9qdJYsB7ciXhf", "dur": "5:11", "explicit": true}, {"pos": 4, "title": "What's The Difference", "artist": "Dr. Dre, Eminem, Xzibit", "id": "1SWVDBtw6h3tm9OehOkDhv", "dur": "4:04", "explicit": true}, {"pos": 5, "title": "Breathe (feat. Sean Paul) - Rap Version", "artist": "Blu Cantrell, Sean Paul", "id": "1BPybPVkDfUjFDvqG04l58", "dur": "3:48", "explicit": false}, {"pos": 6, "title": "The Bed's Too Big Without You", "artist": "The Police", "id": "3PfBnnkOf0LbCw2jixUCQG", "dur": "4:25", "explicit": false}, {"pos": 7, "title": "Seekuh", "artist": "K.I.Z", "id": "2vKweCjcSxb9o4cWOPdpjU", "dur": "3:45", "explicit": false}, {"pos": 8, "title": "Rasputin", "artist": "Boney M.", "id": "5lWSa1rmuSL6OBPOnkAqoa", "dur": "3:40", "explicit": false}, {"pos": 9, "title": "Drifter", "artist": "Be Svendsen", "id": "1dHNGGlfiGfN45W5KrZ9FO", "dur": "7:33", "explicit": false}, {"pos": 10, "title": "Love Sosa", "artist": "Chief Keef", "id": "01Lr5YepbgjXAWR9iOEyH1", "dur": "4:06", "explicit": true}, {"pos": 11, "title": "schwarzer toyota", "artist": "skrt cobain, Mark Forster, Ski Aggu", "id": "6zV5WGrUYlR2i4AiaKfrKN", "dur": "1:56", "explicit": false}, {"pos": 12, "title": "Das erste Mal", "artist": "Souly", "id": "4WeHpXTdNPBa3WI1qLI84W", "dur": "3:07", "explicit": true}, {"pos": 13, "title": "Samurai Schwert", "artist": "Yung Hurn", "id": "4W8Nib7ekr4ydmfk0iaBUc", "dur": "2:33", "explicit": false}, {"pos": 14, "title": "Messaggio", "artist": "Lesiman", "id": "7fbBp43MQNYlkNMHaUHAuH", "dur": "3:45", "explicit": false}, {"pos": 15, "title": "Sound of the South", "artist": "9inebro, Traya, Lugatti & 9ine", "id": "6EvQmfIT8VP9ucglN9tuaB", "dur": "2:15", "explicit": true}, {"pos": 16, "title": "Lujon", "artist": "Henry Mancini", "id": "37N37WJQvXqplFdCwkNgX3", "dur": "2:38", "explicit": false}, {"pos": 17, "title": "Der Lehrer", "artist": "Souly", "id": "6SC2xPbuXxotRFXq1nIq4z", "dur": "2:26", "explicit": true}, {"pos": 18, "title": "Basal Metabolism (Based On How Long Has This Been Going On)", "artist": "Fred Astaire", "id": "3jV7xeKd7V5suD6w9qCT2m", "dur": "2:53", "explicit": false}, {"pos": 19, "title": "Tijuana Flow", "artist": "Marsimoto", "id": "1ktyteDIg3QKVTktnKIE28", "dur": "2:15", "explicit": false}, {"pos": 20, "title": "Charmander", "artist": "Aminé", "id": "4Aocy7YAyOYf5YHj18Vfj3", "dur": "2:11", "explicit": true}, {"pos": 21, "title": "Cumshot", "artist": "SHOKI", "id": "3rkvPrlGZimE8x9VEQeTtI", "dur": "2:03", "explicit": false}, {"pos": 22, "title": "Blue (Da Ba Dee) - Gabry Ponte Ice Pop Radio", "artist": "Eiffel 65, Gabry Ponte", "id": "4GewRLEiI4BDTQsoH8BRVV", "dur": "4:43", "explicit": false}, {"pos": 23, "title": "Endless Fashion (feat. Nicki Minaj)", "artist": "Lil Uzi Vert, Nicki Minaj", "id": "41bmnQZoDMQdDh5zyomtW7", "dur": "3:36", "explicit": true}, {"pos": 24, "title": "Shimmy Shimmy Ya", "artist": "Ol' Dirty Bastard", "id": "3ABG1UQTk0eLYUAeWkmfMi", "dur": "2:41", "explicit": true}, {"pos": 25, "title": "Shimmy", "artist": "Aminé", "id": "1PlitoLAYkgjm8YIg79ouK", "dur": "2:14", "explicit": true}, {"pos": 26, "title": "Ocean Prime (feat. Coi Leray)", "artist": "Coi Leray, Bfb Da Packman", "id": "17lzuZ03enjlAQ8RHBx3aN", "dur": "2:30", "explicit": true}, {"pos": 27, "title": "Keine Macht für niemand", "artist": "Ton Steine Scherben", "id": "2yw6quFRAzoigN89yf6q6x", "dur": "4:11", "explicit": false}, {"pos": 28, "title": "Chemie Chemie Ya", "artist": "Kraftklub", "id": "3eb1Qq8uqSDoRKib8z7vf3", "dur": "4:07", "explicit": false}, {"pos": 29, "title": "All I Need", "artist": "Lee Fields & The Expressions, Lee Fields", "id": "2mGWmvIIvs7jKEXxyh7Wfb", "dur": "3:34", "explicit": false}, {"pos": 30, "title": "Antidote", "artist": "Travis Scott", "id": "1wHZx0LgzFHyeIZkUydNXq", "dur": "4:22", "explicit": true}, {"pos": 31, "title": "Forget Me Nots - Remastered", "artist": "Patrice Rushen", "id": "4UQH52FfgGpzDShKDbBvEA", "dur": "4:44", "explicit": false}, {"pos": 32, "title": "Forget Me Thots", "artist": "Yung Gravy", "id": "2DulH2O6UpIL4VDlFhJknT", "dur": "3:04", "explicit": true}, {"pos": 33, "title": "Junge Roemer", "artist": "Falco", "id": "23s49X38CjDiyImFPjNA4b", "dur": "4:30", "explicit": false}, {"pos": 34, "title": "Junge Roemer (feat. Falco)", "artist": "Zugezogen Maskulin, Falco", "id": "7E1SLgOJ9kIJcKLwXuYFoo", "dur": "3:56", "explicit": false}, {"pos": 35, "title": "Sitting In The Park", "artist": "Billy Stewart", "id": "0Iwbts8iqaJJh2kPiXbtgV", "dur": "3:14", "explicit": false}, {"pos": 36, "title": "Again (with The Mellomen)", "artist": "Doris Day, The Mellomen", "id": "0qB213IfGN0JXXm9aRjldF", "dur": "2:47", "explicit": false}, {"pos": 37, "title": "Karen, Pt. 2", "artist": "Yung Gravy", "id": "3txlIcuRnjIerl96JxNQS3", "dur": "1:41", "explicit": true}, {"pos": 38, "title": "i love being with you", "artist": "Elijah Who", "id": "05WumP6Z6mu15TfGb4HvUg", "dur": "1:36", "explicit": false}, {"pos": 39, "title": "Put Your Head on My Shoulder", "artist": "Paul Anka", "id": "7eqNATKM78MkWP6aHGXHEV", "dur": "2:35", "explicit": false}, {"pos": 40, "title": "Freak", "artist": "Doja Cat", "id": "3aA6xB0tOilDDX17fIJ0Bl", "dur": "4:44", "explicit": true}, {"pos": 41, "title": "Never Gonna Give You Up", "artist": "Rick Astley", "id": "4PTG3Z6ehGkBFwjybzWkR8", "dur": "3:33", "explicit": false}, {"pos": 42, "title": "Betty (Get Money)", "artist": "Yung Gravy", "id": "4cacyP5c3PMlfnyjpg13xW", "dur": "2:26", "explicit": false}, {"pos": 43, "title": "Baby Come Back", "artist": "Player", "id": "3adQpYatYOsgAKr853t4mZ", "dur": "3:34", "explicit": false}, {"pos": 44, "title": "Cheryl", "artist": "Yung Gravy", "id": "18gNzobZV5YD8BhL8o3BTi", "dur": "2:49", "explicit": true}, {"pos": 45, "title": "Mr. Sandman", "artist": "The Chordettes", "id": "47O5lXcK78Z3TIiGzuc18l", "dur": "2:24", "explicit": false}, {"pos": 46, "title": "Mr. Clean", "artist": "Yung Gravy", "id": "4hiNSVDrVkcrd0BrOME3HX", "dur": "3:30", "explicit": false}, {"pos": 47, "title": "Could Heaven Ever Be Like This", "artist": "Idris Muhammad", "id": "1xkOg49ZxldiM1ioIudwUS", "dur": "8:36", "explicit": false}, {"pos": 48, "title": "Loud Places", "artist": "Jamie xx, Romy", "id": "1jy7SkRcmBCTcv4ZMtwz29", "dur": "4:43", "explicit": false}, {"pos": 49, "title": "He's the Greatest Dancer - 1995 Remaster", "artist": "Sister Sledge", "id": "5WwRKYnVy9dekqXAGPbAvU", "dur": "6:15", "explicit": false}, {"pos": 50, "title": "Gettin' Jiggy Wit It", "artist": "Will Smith", "id": "0weAUscowxeqDtpCgtbpgp", "dur": "3:47", "explicit": false}, {"pos": 51, "title": "Sunny", "artist": "Bobby Hebb", "id": "4vju55Ag7apDL2CfotuE7Q", "dur": "2:45", "explicit": false}, {"pos": 52, "title": "Easy", "artist": "CRO", "id": "063ltSmgXNffmgYxippeke", "dur": "2:52", "explicit": true}, {"pos": 53, "title": "Come As You Are", "artist": "Nirvana", "id": "2RsAajgo0g7bMCHxwH3Sk0", "dur": "3:38", "explicit": false}, {"pos": 54, "title": "IN NÜRNBERG", "artist": "Snake16", "id": "3YSFVels7XNIQcVBR0Dt4Y", "dur": "2:04", "explicit": false}, {"pos": 55, "title": "Dream On", "artist": "Aerosmith", "id": "1xsYj84j7hUDDnTTerGWlH", "dur": "4:27", "explicit": false}, {"pos": 56, "title": "Sing For The Moment", "artist": "Eminem", "id": "3CpoeW0cZSDzIRv5z34F87", "dur": "5:39", "explicit": true}, {"pos": 57, "title": "Summer Madness", "artist": "Kool & The Gang", "id": "5BxHfyGk49gqbg5BdW6FO4", "dur": "4:17", "explicit": false}, {"pos": 58, "title": "Summer", "artist": "Vanilla", "id": "5DnVR3FYEj7wcpPCWrFfYo", "dur": "4:40", "explicit": false}, {"pos": 59, "title": "The Show Is Over", "artist": "Evelyn \"Champagne\" King", "id": "3XP3yLlVLC5gxh2oUnWhVl", "dur": "5:42", "explicit": false}, {"pos": 60, "title": "Will You Be Mine", "artist": "Anita Baker", "id": "6wGFvq0jt8EHTGssKirtpi", "dur": "5:29", "explicit": false}, {"pos": 61, "title": "You Know How We Do It", "artist": "Ice Cube", "id": "67ncYmW29pNJJY2yXuLPwT", "dur": "3:52", "explicit": true}, {"pos": 62, "title": "Prelude", "artist": "Bernard Herrmann", "id": "5L5fwo8nQjcFhSMTWpLOes", "dur": "1:56", "explicit": false}, {"pos": 63, "title": "Gimme Some More", "artist": "Busta Rhymes", "id": "47wZfF4OdME3xkIPhhpSSF", "dur": "2:38", "explicit": true}, {"pos": 64, "title": "Gimme! Gimme! Gimme! (A Man After Midnight)", "artist": "ABBA", "id": "3vkQ5DAB1qQMYO4Mr9zJN6", "dur": "4:52", "explicit": false}, {"pos": 65, "title": "Hung Up", "artist": "Madonna", "id": "3850dYVgOFIXJh5U4BFEWH", "dur": "5:37", "explicit": false}, {"pos": 66, "title": "Move on Up - Extended Version", "artist": "Curtis Mayfield", "id": "01gDLZsi0j5fWC28FLPNO8", "dur": "8:55", "explicit": false}, {"pos": 67, "title": "Touch The Sky", "artist": "Kanye West, Lupe Fiasco", "id": "2dxjKgT0li4qBI3QwuN9Ih", "dur": "3:56", "explicit": true}, {"pos": 68, "title": "Saudade Vem Correndo", "artist": "Stan Getz, Luiz Bonfá, Maria Toledo", "id": "3QxAadrRx8aSEVd6Qzr8KF", "dur": "3:39", "explicit": false}, {"pos": 69, "title": "Runnin'", "artist": "The Pharcyde", "id": "0XgpiStoxq1IJncYlPrvZ5", "dur": "4:56", "explicit": true}, {"pos": 70, "title": "Music In My Mind Part 2", "artist": "Jazz Liberatorz", "id": "3QSa7qZDAOtaWAaWkYJnkI", "dur": "3:06", "explicit": false}, {"pos": 71, "title": "Lovely Day", "artist": "Bill Withers", "id": "0bRXwKfigvpKZUurwqAlEh", "dur": "4:17", "explicit": false}, {"pos": 72, "title": "Sunshine (feat. Anthony Hamilton)", "artist": "Twista, Anthony Hamilton", "id": "5y8WWi1BaKHXfuln0XoIZs", "dur": "3:46", "explicit": true}, {"pos": 73, "title": "Pretty Little Ditty - Remastered 2003", "artist": "Red Hot Chili Peppers", "id": "0VNgwKioO0om8n9R3oBoIj", "dur": "3:07", "explicit": false}, {"pos": 74, "title": "Butterfly", "artist": "Crazy Town", "id": "6GQ3WTaNHMFlVmN4burGat", "dur": "3:36", "explicit": false}, {"pos": 75, "title": "bring it on", "artist": "qoru", "id": "1wwW1ORXhJqqOTKjOcDeIT", "dur": "1:17", "explicit": false}, {"pos": 76, "title": "Can't Get You out of My Head", "artist": "Kylie Minogue", "id": "3E7ZwUMJFqpsDOJzEkBrQ7", "dur": "3:50", "explicit": false}, {"pos": 77, "title": "Tongues", "artist": "Mel 4Ever, Ayesha Erotica", "id": "18QS9wnUr7DOhMb73monpK", "dur": "3:15", "explicit": true}, {"pos": 78, "title": "Blue Monday '88", "artist": "New Order", "id": "31MOjWj3CT3dCQsMV2b8Wu", "dur": "4:04", "explicit": false}, {"pos": 79, "title": "Blue Monday", "artist": "Ayesha Erotica", "id": "6UmjYOPldAMquO1cInxFbD", "dur": "4:04", "explicit": false}, {"pos": 80, "title": "Redbone", "artist": "Childish Gambino", "id": "3vQ4T78TTMOjQXGfXVKQJo", "dur": "5:26", "explicit": true}, {"pos": 81, "title": "1234", "artist": "Shirama, Big Pat, yani5000", "id": "1xaqXMUUwlVgdjtXzTgUuT", "dur": "2:20", "explicit": false}, {"pos": 82, "title": "Moog City", "artist": "C418", "id": "4Ar3oSp4bAw5gz22F70GM7", "dur": "2:40", "explicit": false}, {"pos": 83, "title": "MOOGCiTY", "artist": "AKIBA", "id": "1HEfXDxLCuIAOvNkYMK9pC", "dur": "2:15", "explicit": false}, {"pos": 84, "title": "My Song", "artist": "Labi Siffre", "id": "2EQWbkcNoKPOXQtJM7nqRV", "dur": "4:44", "explicit": false}, {"pos": 85, "title": "I Wonder", "artist": "Kanye West", "id": "7rbECVPkY5UODxoOUVKZnA", "dur": "4:03", "explicit": true}, {"pos": 86, "title": "Kiss of Life", "artist": "Sade", "id": "4S0NYVAQdIb81uLoZoQmgq", "dur": "5:50", "explicit": false}, {"pos": 87, "title": "Doomsday", "artist": "MF DOOM, Pebbles The Invisible Girl", "id": "7EQvdUJqZ2i7SWvSB2VqGA", "dur": "4:58", "explicit": true}, {"pos": 88, "title": "Toxic", "artist": "Britney Spears", "id": "6I9VzXrHxO9rA9A5euc8Ak", "dur": "3:18", "explicit": false}, {"pos": 89, "title": "Toxic - Y2K & Alexander Lewis Remix", "artist": "Britney Spears, Y2K, Alexander Lewis", "id": "48C9sYkAOavqzFn77bxGR3", "dur": "1:46", "explicit": false}, {"pos": 90, "title": "Toxic", "artist": "2WEI", "id": "7sgvhY89MQ5ipWtgr9l3NQ", "dur": "3:57", "explicit": false}, {"pos": 91, "title": "You're Toxic", "artist": "Deborah de Luca", "id": "5Ig2RPAPLrkAkFpyr8uAPj", "dur": "6:11", "explicit": false}, {"pos": 92, "title": "Wam Bam", "artist": "Monaleo, Baby Kia", "id": "7JBK2gNnB6HXeL274Mo4yI", "dur": "2:30", "explicit": true}, {"pos": 93, "title": "Gangsta's Paradise", "artist": "Coolio, L.V.", "id": "1DIXPcTDzTj8ZMHt3PDt8p", "dur": "4:00", "explicit": false}, {"pos": 94, "title": "Gangsta's Paradise", "artist": "2WEI", "id": "3UGPYGZAgNUDdIb0SkJKGE", "dur": "2:46", "explicit": false}, {"pos": 95, "title": "I Got 5 On It", "artist": "Luniz, Michael Marshall", "id": "4IYKjN1DrYzxKXt0umJqsG", "dur": "4:13", "explicit": false}, {"pos": 96, "title": "I Got 5 On It - Tethered Mix from US", "artist": "Michael Abels, Luniz, Michael Marshall", "id": "5TvLB4zBOFWHcnDoWVI4Mw", "dur": "1:43", "explicit": false}, {"pos": 97, "title": "Why Can't We Live Together", "artist": "Timmy Thomas", "id": "722E6CPY8biq4sUnf40u6Y", "dur": "4:37", "explicit": false}, {"pos": 98, "title": "Hotline Bling", "artist": "Drake", "id": "0wwPcA6wtMf6HUMpIRdeP7", "dur": "4:27", "explicit": false}, {"pos": 99, "title": "hotline (edit)", "artist": "Billie Eilish", "id": "0WFryfbNKPXVtVQlz5dZ8H", "dur": "1:00", "explicit": false}, {"pos": 100, "title": "Trans-Europe Express - 2009 Remaster", "artist": "Kraftwerk", "id": "3UjH6apk0ogZeIqhHbjrRU", "dur": "6:37", "explicit": false}]</script>
+<script>
+const RAW=JSON.parse(document.getElementById('data').textContent);
+let tracks=RAW.map(t=>({...t}));
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const list=$('#list');
+const LSKEY='slw_state_v2',CACHEKEY='slw_playlist_cache_v1',TOKKEY='slw_spotify_tok',PKCEKEY='slw_pkce';
+const DEFAULT_PLAYLIST='2zHRF72BdAwFcdethu1EcE';
+const SCOPES='playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private';
+const REDIRECT=location.origin+location.pathname;
+const PALETTE=['#e6552f','#3f8ad1','#8e5cd1','#2fa96b','#d1a02f','#c94f86','#4fb0c9','#b0673f','#7d8a2e','#c05fb0'];
+
+// ---------- state ----------
+let state={families:[],ann:{},cfg:{clientId:'',playlistId:DEFAULT_PLAYLIST}};
+function load(){try{const s=JSON.parse(localStorage.getItem(LSKEY));if(s&&s.ann){state={families:s.families||[],ann:s.ann||{},cfg:Object.assign({clientId:'',playlistId:DEFAULT_PLAYLIST},s.cfg||{})};}}catch(e){}}
+let saveTimer=null;
+function save(){localStorage.setItem(LSKEY,JSON.stringify(state));$('#saveState').textContent='gespeichert ✓';clearTimeout(saveTimer);saveTimer=setTimeout(()=>$('#saveState').textContent='',1200);}
+function ann(id){return state.ann[id] ??= {fam:null,src:false,smp:false};}
+function famById(id){return state.families.find(f=>f.id===id);}
+function famColor(id){const f=famById(id);return f?f.color:null;}
+function nextColor(){return PALETTE[state.families.length%PALETTE.length];}
+function newFamily(name){const id='f'+Date.now()+Math.floor(Math.random()*999);state.families.push({id,name:name||('Familie '+(state.families.length+1)),color:nextColor()});return id;}
+function delFamily(id){state.families=state.families.filter(f=>f.id!==id);Object.values(state.ann).forEach(a=>{if(a.fam===id)a.fam=null;});}
+
+// ---------- helpers ----------
+function norm(t){return t.toLowerCase().replace(/\(.*?\)/g,' ').split(' - ')[0].replace(/feat\.?.*/,' ').replace(/[^a-z0-9]+/g,'').trim();}
+function durToSec(d){const[m,s]=d.split(':').map(Number);return m*60+s;}
+function secToHms(x){const h=Math.floor(x/3600),m=Math.floor(x%3600/60);return (h?h+' h ':'')+m+' min';}
+function ms(m){const s=Math.round(m/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
+function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function hl(s,q){if(!q)return esc(s);const i=s.toLowerCase().indexOf(q.toLowerCase());if(i<0)return esc(s);return esc(s.slice(0,i))+'<mark>'+esc(s.slice(i,i+q.length))+'</mark>'+esc(s.slice(i+q.length));}
+
+let editMode=false,sortMode=false,selId=null;const batch=new Set();
+
+// ---------- render ----------
+function render(){
+  const q=$('#q').value.trim();
+  const matchIdx=new Set();
+  tracks.forEach((t,i)=>{if(q&&(t.title.toLowerCase().includes(q.toLowerCase())||t.artist.toLowerCase().includes(q.toLowerCase())))matchIdx.add(i);});
+  const showCtx=$('#ctx').checked,ctxIdx=new Set();
+  if(q&&showCtx)matchIdx.forEach(i=>[i-1,i+1].forEach(j=>{if(j>=0&&j<tracks.length)ctxIdx.add(j);}));
+  const famOpts=id=>{let o='<option value="">— Familie —</option>';state.families.forEach(f=>o+=`<option value="${f.id}"${ann(id).fam===f.id?' selected':''}>${esc(f.name)}</option>`);o+='<option value="__new">+ Neue Familie…</option>';return o;};
+  list.innerHTML='';
+  tracks.forEach((t,i)=>{
+    const a=ann(t.id);let show=true;if(q)show=matchIdx.has(i)||ctxIdx.has(i);
+    const row=document.createElement('div');row.className='row'+(sortMode?' drag':'');
+    if(!show)row.className+=' hidden';
+    if(q&&ctxIdx.has(i)&&!matchIdx.has(i))row.className+=' dim';
+    const col=famColor(a.fam);if(col)row.style.borderLeftColor=col;
+    row.dataset.i=i;row.dataset.id=t.id;if(sortMode)row.setAttribute('draggable','true');
+    let left='<div class="posw">';
+    if(editMode)left+=`<input type="checkbox" class="cbx" data-id="${t.id}" ${batch.has(t.id)?'checked':''}>`;
+    if(sortMode)left+='<span class="grip">⋮⋮</span>';
+    left+=`<span class="pos">${i+1}</span></div>`;
+    let chips='';
+    if(!editMode){if(a.fam){const f=famById(a.fam);if(f)chips+=`<span class="chip fam" style="background:${f.color}">${esc(f.name)}</span>`;}if(a.src)chips+='<span class="chip src">Original</span>';if(a.smp)chips+='<span class="chip smp">Sampler</span>';}
+    const mid=`<div><div class="title">${hl(t.title,q)}${t.explicit?'<span class="exp">E</span>':''}${chips}</div><div class="artist">${hl(t.artist,q)}</div></div>`;
+    let right='<div class="right">';
+    if(editMode){
+      right+=`<button class="rolebtn src ${a.src?'act':''}" data-role="src" data-id="${t.id}" title="Original – wurde gesampled">Original</button>`;
+      right+=`<button class="rolebtn smp ${a.smp?'act':''}" data-role="smp" data-id="${t.id}" title="Sampler – enthält ein Sample">Sample</button>`;
+      right+=`<select class="fam" data-id="${t.id}">${famOpts(t.id)}</select>`;
+    }else right+=`<span class="dur">${t.dur}</span>`;
+    right+='</div>';
+    row.innerHTML=left+mid+right;list.appendChild(row);
+  });
+  wire();updStats();updBatchbar();paintSel();
+}
+function updStats(){$('#stCount').textContent=tracks.length;$('#stFamN').textContent=state.families.length;$('#stSrc').textContent=Object.values(state.ann).filter(a=>a.src).length;$('#stSmp').textContent=Object.values(state.ann).filter(a=>a.smp).length;$('#stDur').textContent=secToHms(tracks.reduce((s,t)=>s+durToSec(t.dur),0))+' gesamt';}
+function wire(){
+  $$('#list .row').forEach(row=>{row.addEventListener('click',e=>{if(editMode||sortMode)return;if(e.target.closest('button,select,input'))return;const i=+row.dataset.i;selId=(selId===i?null:i);paintSel();});if(sortMode)addDrag(row);});
+  $$('.rolebtn').forEach(b=>b.addEventListener('click',()=>{const a=ann(b.dataset.id);a[b.dataset.role]=!a[b.dataset.role];save();render();}));
+  $$('select.fam').forEach(s=>s.addEventListener('change',()=>{const id=s.dataset.id;if(s.value==='__new'){const nm=prompt('Name der neuen Familie:');if(nm){const fid=newFamily(nm);ann(id).fam=fid;}save();render();return;}ann(id).fam=s.value||null;save();render();}));
+  $$('.cbx').forEach(c=>c.addEventListener('change',()=>{if(c.checked)batch.add(c.dataset.id);else batch.delete(c.dataset.id);updBatchbar();}));
+}
+function paintSel(){$$('#list .row').forEach(r=>r.classList.remove('sel','orig'));if(selId==null||editMode)return;const rows=$$('#list .row');const cur=rows.find(r=>+r.dataset.i===selId);if(cur){cur.classList.add('sel');const p=rows.find(r=>+r.dataset.i===selId-1);if(p)p.classList.add('orig');}}
+function updBatchbar(){$('#batchbar').style.display=editMode?'flex':'none';$('#selN').textContent=batch.size;}
+let dragEl=null;
+function addDrag(row){
+  row.addEventListener('dragstart',()=>{dragEl=row;row.classList.add('dragging');});
+  row.addEventListener('dragend',()=>{row.classList.remove('dragging');$$('#list .row').forEach(r=>r.classList.remove('dropbefore'));});
+  row.addEventListener('dragover',e=>{e.preventDefault();$$('#list .row').forEach(r=>r.classList.remove('dropbefore'));row.classList.add('dropbefore');});
+  row.addEventListener('drop',e=>{e.preventDefault();const from=+dragEl.dataset.i,to=+row.dataset.i;if(from===to)return;const[m]=tracks.splice(from,1);tracks.splice(from<to?to-1:to,0,m);render();});
+}
+// ---------- batch ops ----------
+$('#bNew').onclick=()=>{if(!batch.size)return;const nm=prompt('Name der neuen Familie:',suggestName());if(nm===null)return;const fid=newFamily(nm);batch.forEach(id=>ann(id).fam=fid);autoRoles(fid);save();render();};
+$('#bAdd').onclick=()=>{if(!batch.size)return;if(!state.families.length){alert('Noch keine Familie vorhanden.');return;}const nm=prompt('Zu welcher Familie?\n'+state.families.map(f=>'• '+f.name).join('\n'));const f=state.families.find(x=>x.name===nm);if(!f){alert('Keine Familie mit diesem Namen.');return;}batch.forEach(id=>ann(id).fam=f.id);save();render();};
+$('#bRemove').onclick=()=>{batch.forEach(id=>ann(id).fam=null);save();render();};
+$('#bClear').onclick=()=>{batch.clear();render();};
+function suggestName(){const ids=[...batch];const t=tracks.find(x=>ids.includes(x.id));return t?t.title.split(' - ')[0].replace(/\(.*?\)/,'').trim():'';}
+function autoRoles(fid){const mem=tracks.filter(t=>ann(t.id).fam===fid);if(mem.some(t=>ann(t.id).src||ann(t.id).smp))return;mem.forEach((t,i)=>{const a=ann(t.id);if(i===0)a.src=true;else a.smp=true;});}
+// ---------- families panel ----------
+function buildFam(){
+  const p=$('#famPanel');let h='<h3>Familien <span class="badgecount">'+state.families.length+'</span> <button class="primary" style="float:right" id="famAdd">＋ Neue Familie</button><button style="float:right;margin-right:8px" id="famSuggest">Auto-Vorschlag</button></h3>';
+  if(!state.families.length)h+='<div class="mini">Noch keine Familien. Markieren-Modus → mehrere anhaken → „Auswahl → neue Familie“, oder „Auto-Vorschlag“.</div>';
+  state.families.forEach(f=>{
+    const mem=tracks.map((t,i)=>({t,i})).filter(o=>ann(o.t.id).fam===f.id);const pos=mem.map(o=>o.i+1);const adj=pos.every((n,i)=>i===0||n===pos[i-1]+1);
+    const nSrc=mem.filter(o=>ann(o.t.id).src).length,nSmp=mem.filter(o=>ann(o.t.id).smp).length;
+    h+=`<div class="fam-card" style="border-left-color:${f.color}"><div class="hd"><span class="chip fam" style="background:${f.color}">${esc(f.name)}</span><span class="mini">${mem.length} Titel · Pos ${pos.join(', ')||'—'}</span><button class="linkbtn" onclick="renFam('${f.id}')">umbenennen</button><button class="linkbtn" onclick="rmFam('${f.id}')">auflösen</button></div>`;
+    h+='<div class="mem">'+mem.map(o=>{const a=ann(o.t.id);return `${o.i+1}. ${esc(o.t.title)} <span class="mini">${esc(o.t.artist)}</span>`+(a.src?' <span class="chip src">Original</span>':'')+(a.smp?' <span class="chip smp">Sampler</span>':'')+((!a.src&&!a.smp)?' <span class="warn">· keine Rolle</span>':'');}).join('<br>')+'</div>';
+    let iss=[];if(mem.length<2)iss.push('nur 1 Titel');if(!nSrc)iss.push('kein Original');if(!nSmp)iss.push('kein Sampler');if(!adj&&mem.length>1)iss.push('nicht benachbart');
+    h+='<div class="mini">'+(iss.length?'<span class="bad">⚠ '+iss.join(' · ')+'</span>':'<span class="ok">✓ vollständig &amp; benachbart</span>')+'</div></div>';
+  });
+  p.innerHTML=h;$('#famAdd').onclick=()=>{const nm=prompt('Name der neuen Familie:');if(nm){newFamily(nm);save();buildFam();render();}};$('#famSuggest').onclick=suggestFamilies;
+}
+window.renFam=id=>{const f=famById(id);const nm=prompt('Neuer Name:',f.name);if(nm){f.name=nm;save();buildFam();render();}};
+window.rmFam=id=>{if(confirm('Familie auflösen? Songs bleiben, verlieren nur die Zuordnung.')){delFamily(id);save();buildFam();render();}};
+function suggestFamilies(){const byNorm={};tracks.forEach(t=>{(byNorm[norm(t.title)] ??= []).push(t);});let made=0;Object.entries(byNorm).forEach(([k,v])=>{if(!k||v.length<2)return;if(v.some(t=>ann(t.id).fam))return;const fid=newFamily(v[0].title.split(' - ')[0].replace(/\(.*?\)/,'').trim());v.forEach(t=>ann(t.id).fam=fid);autoRoles(fid);made++;});save();buildFam();render();alert(made?made+' Familien-Vorschläge angelegt (Rollen als Startwert – bitte prüfen).':'Keine neuen Vorschläge.');}
+// ---------- check ----------
+function buildCheck(){
+  const p=$('#checkPanel');let h='<h3>Konsistenz-Check</h3>';
+  const orphan=tracks.filter(t=>{const a=ann(t.id);return(a.src||a.smp)&&!a.fam;});
+  h+='<div class="sctn"><b>Rollen ohne Familie</b><div class="mini">'+(orphan.length?orphan.map(t=>'⚠ '+esc(t.title)+' — '+esc(t.artist)).join('<br>'):'<span class="ok">keine ✓</span>')+'</div></div>';
+  let famIss=[];state.families.forEach(f=>{const mem=tracks.map((t,i)=>({t,i})).filter(o=>ann(o.t.id).fam===f.id);const pos=mem.map(o=>o.i+1),adj=pos.every((n,i)=>i===0||n===pos[i-1]+1);const nSrc=mem.filter(o=>ann(o.t.id).src).length,nSmp=mem.filter(o=>ann(o.t.id).smp).length;let iss=[];if(mem.length<2)iss.push('nur 1 Titel');if(!nSrc)iss.push('kein Original');if(!nSmp)iss.push('kein Sampler');if(!adj&&mem.length>1)iss.push('nicht benachbart');if(iss.length)famIss.push(`⚠ <b>${esc(f.name)}</b>: ${iss.join(', ')} (Pos ${pos.join(', ')})`);});
+  h+='<div class="sctn"><b>Unvollständige / verstreute Familien</b><div class="mini">'+(famIss.length?famIss.join('<br>'):'<span class="ok">alle ok ✓</span>')+'</div></div>';
+  const byId={};tracks.forEach(t=>{(byId[t.id]??=[]).push(t);});const dups=Object.entries(byId).filter(([k,v])=>v.length>1);
+  h+='<div class="sctn"><b>Echte Doppel-Einträge</b><div class="mini">'+(dups.length?dups.map(([id,v])=>'⚠ '+esc(v[0].title)+' → Pos '+v.map(t=>tracks.indexOf(t)+1).join(', ')).join('<br>'):'<span class="ok">keine ✓</span>')+'</div></div>';
+  const byNorm={};tracks.forEach(t=>{(byNorm[norm(t.title)]??=[]).push(t);});const sugg=Object.entries(byNorm).filter(([k,v])=>k&&v.length>1&&v.every(t=>!ann(t.id).fam));
+  h+='<div class="sctn"><b>Mögliche Familien</b> <span class="mini">(gleicher Titel-Kern, noch nicht zugeordnet)</span><div class="mini">'+(sugg.length?sugg.map(([k,v])=>'• „'+esc(v[0].title.split(' - ')[0])+'“ → Pos '+v.map(t=>tracks.indexOf(t)+1).join(', ')).join('<br>')+'<br><button class="primary" style="margin-top:8px" onclick="suggestFamilies()">Alle übernehmen</button>':'<span class="ok">nichts Offensichtliches offen ✓</span>')+'</div></div>';
+  p.innerHTML=h;
+}
+// ---------- data import/export ----------
+$('#dExport').onclick=()=>{$('#dArea').value=JSON.stringify(state,null,2);$('#dMsg').textContent='Exportiert – Text sichern.';};
+$('#dImport').onclick=()=>{try{const s=JSON.parse($('#dArea').value);if(!s.ann||!s.families)throw 0;state=Object.assign({cfg:{clientId:'',playlistId:DEFAULT_PLAYLIST}},s);save();buildFam();render();updSpotifyUI();$('#dMsg').textContent='Importiert ✓';}catch(e){$('#dMsg').textContent='Ungültiges JSON.';}};
+$('#dWipe').onclick=()=>{if(confirm('Wirklich ALLE Familien und Flags löschen?')){state={families:[],ann:{},cfg:state.cfg};save();buildFam();buildCheck();render();$('#dMsg').textContent='Gelöscht.';}};
+// ---------- reorder export ----------
+let expFmt='uri';
+function buildExport(){
+  if(expFmt==='uri')return tracks.map(t=>'spotify:track:'+t.id).join('\n');
+  if(expFmt==='list')return tracks.map((t,i)=>(i+1)+'. '+t.title+' — '+t.artist).join('\n');
+  if(expFmt==='full')return tracks.map((t,i)=>{const a=ann(t.id),f=famById(a.fam);return (i+1)+'. '+t.title+' — '+t.artist+(f?' ['+f.name+']':'')+(a.src?' (Original)':'')+(a.smp?' (Sampler)':'');}).join('\n');
+  if(expFmt==='csv'){const q=s=>'"'+String(s).replace(/"/g,'""')+'"';return 'pos,title,artist,track_id,uri,family,original,sampler\n'+tracks.map((t,i)=>{const a=ann(t.id),f=famById(a.fam);return [i+1,q(t.title),q(t.artist),t.id,'spotify:track:'+t.id,q(f?f.name:''),a.src?1:0,a.smp?1:0].join(',');}).join('\n');}
+  return JSON.stringify(tracks.map((t,i)=>{const a=ann(t.id),f=famById(a.fam);return {pos:i+1,title:t.title,artist:t.artist,uri:'spotify:track:'+t.id,family:f?f.name:null,original:a.src,sampler:a.smp};}),null,2);
+}
+function openModal(){$('#exp').value=buildExport();$('#modal').style.display='flex';}
+function closeModal(){$('#modal').style.display='none';}
+function copyExp(){const ta=$('#exp');ta.select();navigator.clipboard.writeText(ta.value).then(()=>{$('#copied').textContent='Kopiert ✓';setTimeout(()=>$('#copied').textContent='',1500);});}
+$$('.fmt').forEach(b=>b.onclick=e=>{$$('.fmt').forEach(x=>x.classList.remove('on'));e.target.classList.add('on');expFmt=e.target.dataset.f;$('#exp').value=buildExport();});
+$('#modal').onclick=e=>{if(e.target.id==='modal')closeModal();};
+
+// ================= SPOTIFY (PKCE) =================
+function tok(){try{return JSON.parse(localStorage.getItem(TOKKEY));}catch(e){return null;}}
+function storeTok(j){const t=tok()||{};const n={access_token:j.access_token,refresh_token:j.refresh_token||t.refresh_token,expires_at:Date.now()+(j.expires_in||3600)*1000};localStorage.setItem(TOKKEY,JSON.stringify(n));}
+function b64url(buf){return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+async function sha256(s){return await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));}
+function randStr(n){const a=new Uint8Array(n);crypto.getRandomValues(a);return[...a].map(x=>('0'+x.toString(16)).slice(-2)).join('');}
+function spMsg(t){$('#spMsg').textContent=t;}
+async function spConnect(){
+  const cid=state.cfg.clientId.trim();
+  if(!cid){spMsg('Bitte zuerst Client-ID eintragen.');return;}
+  if(!(window.crypto&&crypto.subtle)){spMsg('Kryptografie nicht verfügbar – Seite muss über https/127.0.0.1 laufen.');return;}
+  const verifier=randStr(48);const challenge=b64url(await sha256(verifier));
+  localStorage.setItem(PKCEKEY,verifier);
+  const p=new URLSearchParams({client_id:cid,response_type:'code',redirect_uri:REDIRECT,scope:SCOPES,code_challenge_method:'S256',code_challenge:challenge});
+  location.href='https://accounts.spotify.com/authorize?'+p.toString();
+}
+async function handleRedirect(){
+  const u=new URL(location.href);const code=u.searchParams.get('code');const err=u.searchParams.get('error');
+  if(err){spMsg('Autorisierung abgelehnt: '+err);history.replaceState({},'',REDIRECT);return;}
+  if(!code)return;
+  const verifier=localStorage.getItem(PKCEKEY);
+  const body=new URLSearchParams({client_id:state.cfg.clientId.trim(),grant_type:'authorization_code',code,redirect_uri:REDIRECT,code_verifier:verifier||''});
+  try{const r=await fetch('https://accounts.spotify.com/api/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});const j=await r.json();
+    if(j.access_token){storeTok(j);spMsg('Verbunden ✓');}else{spMsg('Token-Fehler: '+(j.error_description||JSON.stringify(j)));}}catch(e){spMsg('Netzwerkfehler beim Token.');}
+  history.replaceState({},'',REDIRECT);
+}
+async function refresh(){const t=tok();if(!t||!t.refresh_token)return false;
+  const body=new URLSearchParams({client_id:state.cfg.clientId.trim(),grant_type:'refresh_token',refresh_token:t.refresh_token});
+  try{const r=await fetch('https://accounts.spotify.com/api/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});const j=await r.json();if(j.access_token){storeTok(j);return true;}}catch(e){}return false;}
+async function ensureTok(){const t=tok();if(!t)return false;if(Date.now()>t.expires_at-30000)return await refresh();return true;}
+async function api(url,opt={}){if(!await ensureTok()){spMsg('Nicht verbunden.');return null;}const t=tok();const r=await fetch(url,{...opt,headers:{...(opt.headers||{}),Authorization:'Bearer '+t.access_token}});if(r.status===401){if(await refresh())return api(url,opt);}return r;}
+async function spLoad(){
+  if(!tok()){spMsg('Erst verbinden.');return;}
+  const pid=state.cfg.playlistId.trim();if(!pid){spMsg('Playlist-ID fehlt.');return;}
+  spMsg('Lade Playlist…');
+  let url='https://api.spotify.com/v1/playlists/'+pid+'/tracks?limit=100&fields='+encodeURIComponent('items(track(id,name,artists(name),duration_ms,explicit)),next');
+  let out=[],guard=0;
+  while(url&&guard++<30){const r=await api(url);if(!r||!r.ok){spMsg('Fehler beim Laden ('+(r?r.status:'?')+').');return;}const j=await r.json();(j.items||[]).forEach(it=>{const tr=it.track;if(!tr||!tr.id)return;out.push({id:tr.id,title:tr.name,artist:(tr.artists||[]).map(a=>a.name).join(', '),dur:ms(tr.duration_ms||0),explicit:!!tr.explicit});});url=j.next;}
+  out.forEach((t,i)=>t.pos=i+1);tracks=out;localStorage.setItem(CACHEKEY,JSON.stringify(tracks));
+  $('#srcNote').textContent='live aus Spotify geladen';spMsg('Geladen: '+tracks.length+' Titel ✓');selId=null;render();
+}
+async function spSave(){
+  if(!tok()){spMsg('Erst verbinden.');return;}
+  const uris=tracks.filter(t=>t.id).map(t=>'spotify:track:'+t.id);
+  if(!uris.length){spMsg('Keine Titel zum Speichern.');return;}
+  if(!confirm('Die Playlist wird mit der aktuellen Reihenfolge ('+uris.length+' Titel) überschrieben.\n\nTipp: vorher unter „Export → JSON/CSV“ ein Backup ziehen.\n\nFortfahren?'))return;
+  const pid=state.cfg.playlistId.trim();spMsg('Speichere… (Schritt 1)');
+  let r=await api('https://api.spotify.com/v1/playlists/'+pid+'/tracks',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({uris:uris.slice(0,100)})});
+  if(!r||!r.ok){spMsg('Fehler beim Schreiben ('+(r?r.status:'?')+'). Bist du Besitzer der Playlist? Sind die modify-Rechte erteilt?');return;}
+  let step=1;
+  for(let i=100;i<uris.length;i+=100){step++;spMsg('Speichere… (Schritt '+step+')');r=await api('https://api.spotify.com/v1/playlists/'+pid+'/tracks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uris:uris.slice(i,i+100)})});if(!r||!r.ok){spMsg('Fehler bei Batch ab Position '+i+' ('+(r?r.status:'?')+').');return;}}
+  spMsg('Gespeichert ✓ – die Reihenfolge steht jetzt so in Spotify.');
+}
+function spLogout(){localStorage.removeItem(TOKKEY);spMsg('Getrennt.');updSpotifyUI();}
+function updSpotifyUI(){
+  $('#spRedirect').textContent=REDIRECT;
+  $('#spClient').value=state.cfg.clientId||'';
+  $('#spPlaylist').value=state.cfg.playlistId||DEFAULT_PLAYLIST;
+  const t=tok();const on=!!(t&&t.access_token);
+  $('#spPill').className='pill '+(on?'on':'off');$('#spPill').textContent='Spotify: '+(on?'verbunden':'getrennt');
+  $('#spStatusPill').className='pill '+(on?'on':'off');$('#spStatusPill').textContent=on?'verbunden':'getrennt';
+  const insecure=!(window.crypto&&crypto.subtle);
+  $('#spEnvWarn').textContent=insecure?' Aktuell läuft die Seite NICHT sicher (file://?) – Verbinden wird nicht funktionieren.':'';
+}
+$('#spClient').oninput=e=>{state.cfg.clientId=e.target.value;save();updSpotifyUI();};
+$('#spPlaylist').oninput=e=>{state.cfg.playlistId=e.target.value;save();};
+$('#spConnect').onclick=spConnect;$('#spLoad').onclick=spLoad;$('#spSave').onclick=spSave;$('#spLogout').onclick=spLogout;
+$('#spCopyRedir').onclick=()=>{navigator.clipboard.writeText(REDIRECT);$('#spCopyRedir').textContent='kopiert ✓';setTimeout(()=>$('#spCopyRedir').textContent='kopieren',1200);};
+
+// ---------- toolbar / panels ----------
+$('#q').oninput=render;$('#ctx').onchange=render;
+function togglePanel(sel,btn){const p=$(sel);const open=p.style.display==='block';$$('.panel').forEach(x=>x.style.display='none');['#btnFamPanel','#btnCheck','#btnData','#btnSpotify'].forEach(id=>$(id).classList.remove('on'));if(!open){p.style.display='block';btn.classList.add('on');}}
+$('#btnEdit').onclick=e=>{editMode=!editMode;e.target.classList.toggle('on',editMode);e.target.textContent='Markieren-Modus: '+(editMode?'an':'aus');$('#editHint').style.display=editMode?'inline':'none';if(editMode){sortMode=false;$('#btnSort').classList.remove('on');$('#btnSort').textContent='Sortieren: aus';selId=null;}render();};
+$('#btnSort').onclick=e=>{sortMode=!sortMode;e.target.classList.toggle('on',sortMode);e.target.textContent='Sortieren: '+(sortMode?'an (ziehen)':'aus');if(sortMode){editMode=false;$('#btnEdit').classList.remove('on');$('#btnEdit').textContent='Markieren-Modus: aus';$('#editHint').style.display='none';}render();};
+$('#btnFamPanel').onclick=e=>{togglePanel('#famPanel',e.target);if($('#famPanel').style.display==='block')buildFam();};
+$('#btnCheck').onclick=e=>{togglePanel('#checkPanel',e.target);if($('#checkPanel').style.display==='block')buildCheck();};
+$('#btnSpotify').onclick=e=>{togglePanel('#spotifyPanel',e.target);updSpotifyUI();};
+$('#btnData').onclick=e=>{togglePanel('#dataPanel',e.target);};
+$('#btnExport').onclick=openModal;
+
+// ---------- init ----------
+load();
+(function initData(){try{const c=JSON.parse(localStorage.getItem(CACHEKEY));if(c&&c.length){tracks=c.map(t=>({...t}));$('#srcNote').textContent='zuletzt aus Spotify geladen ('+tracks.length+' Titel)';}}catch(e){}})();
+render();updSpotifyUI();
+handleRedirect().then(()=>{updSpotifyUI();if(tok())spLoad();});
+</script>
+</body>
+</html>

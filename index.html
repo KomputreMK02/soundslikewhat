@@ -693,7 +693,7 @@ if(THEME==='eva')playBoot();
 // ================= 3D GRAPH ENGINE (EVA) =================
 let G3=null,RAF3=null,W3=false,c3=null,ctx3=null,W3W=600,W3H=560,DPR=1;
 let cam={az:0.7,el:0.42,dist:800,distT:800};
-let drag3=null,last3=null,mv3=false,sel3=null,pend3=null,GPOS3={},drag3node=null,drag3z=0,STARS=null;
+let drag3=null,last3=null,mv3=false,sel3=null,pend3=null,GPOS3={},drag3node=null,drag3z=0,STARS=null,labelStart=0;
 function buildGraph(keep){if(is3D())return build3D(keep);return buildGraph2D(keep);}
 function stopEngines(){if(GRAF){cancelAnimationFrame(GRAF);GRAF=null;}if(RAF3){cancelAnimationFrame(RAF3);RAF3=null;}}
 function seed3(n){const pv=GPOS3[n.id];if(pv){n.x=pv.x;n.y=pv.y;n.z=pv.z;}else{n.x=(Math.random()-.5)*160;n.y=(Math.random()-.5)*160;n.z=(Math.random()-.5)*160;}n.vx=0;n.vy=0;n.vz=0;}
@@ -722,9 +722,11 @@ function proj3(n){const ca=Math.cos(cam.az),sa=Math.sin(cam.az),ce=Math.cos(cam.
   let x=n.x*ca+n.z*sa;let z=-n.x*sa+n.z*ca;let y=n.y*ce-z*se;let z2=n.y*se+z*ce;
   const zc=cam.dist-z2;const focal=W3H*0.9;const sc=focal/Math.max(1,zc);
   return {sx:W3W/2+x*sc,sy:W3H/2-y*sc,sc,zc};}
-function drawSphere(){const ctx=ctx3;if(!G3)return;const R=cam.dist*0.82;ctx.globalCompositeOperation='lighter';ctx.shadowBlur=0;
+const SCRAMBLE='アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホミムメモヤユヨラリルレロ0123456789#%&*<>=+/¥ΞΔ';
+function decodeText(text,start,now,offset){const el=now-start-(offset||0);const step=14,base=30;let out='';for(let i=0;i<text.length;i++){const ch=text[i];if(ch===' '){out+=' ';continue;}if(el>=base+i*step){out+=ch;}else if(el<0){out+=' ';}else{out+=SCRAMBLE.charAt((Math.random()*SCRAMBLE.length)|0);}}return out;}
+function drawSphere(){const ctx=ctx3;if(!G3)return;const R=cam.dist*1.7;ctx.globalCompositeOperation='lighter';ctx.shadowBlur=0;
   if(!STARS){STARS=[];for(let i=0;i<150;i++){const u=Math.random()*2-1,th=Math.random()*6.2832,rr=Math.sqrt(1-u*u);STARS.push({x:rr*Math.cos(th),y:u,z:rr*Math.sin(th),b:0.3+Math.random()*0.7});}}
-  const SR=cam.dist*0.9;ctx.fillStyle='#8fe9d8';STARS.forEach(sT=>{const p=proj3({x:sT.x*SR,y:sT.y*SR,z:sT.z*SR});if(p.zc<=1)return;ctx.globalAlpha=sT.b*0.5;ctx.beginPath();ctx.arc(p.sx,p.sy,sT.b*1.3,0,6.2832);ctx.fill();});
+  const SR=cam.dist*1.5;ctx.fillStyle='#8fe9d8';STARS.forEach(sT=>{const p=proj3({x:sT.x*SR,y:sT.y*SR,z:sT.z*SR});if(p.zc<=1)return;ctx.globalAlpha=sT.b*0.5;ctx.beginPath();ctx.arc(p.sx,p.sy,sT.b*1.3,0,6.2832);ctx.fill();});
   ctx.strokeStyle='#1fbfa0';ctx.globalAlpha=0.10;ctx.lineWidth=0.7;const seg=48;
   for(let la=-3;la<=3;la++){const phi=la*Math.PI/8,ry=Math.sin(phi)*R,rr=Math.cos(phi)*R;ctx.beginPath();let started=false;for(let k=0;k<=seg;k++){const th=k/seg*6.2832;const p=proj3({x:Math.cos(th)*rr,y:ry,z:Math.sin(th)*rr});if(p.zc<=1){started=false;continue;}if(!started){ctx.moveTo(p.sx,p.sy);started=true;}else ctx.lineTo(p.sx,p.sy);}ctx.stroke();}
   for(let lo=0;lo<8;lo++){const al=lo*Math.PI/8;ctx.beginPath();let started=false;for(let k=0;k<=seg;k++){const th=k/seg*6.2832;const p=proj3({x:Math.cos(th)*R*Math.cos(al),y:Math.sin(th)*R,z:Math.cos(th)*R*Math.sin(al)});if(p.zc<=1){started=false;continue;}if(!started){ctx.moveTo(p.sx,p.sy);started=true;}else ctx.lineTo(p.sx,p.sy);}ctx.stroke();}
@@ -741,11 +743,15 @@ function render3(){if(!ctx3||!G3)return;const ctx=ctx3;ctx.clearRect(0,0,W3W,W3H
   ns.forEach(n=>{const p=n._p;if(p.zc<=1)return;let dim=sel3&&(selFam!=null?n.fam!==selFam:!neigh.has(n.id));const r=Math.max(1.6,(n.src?11:(n.smp?4.5:6))*p.sc*0.55);const col=n.orphan?'#4a4a52':n.color;ctx.globalAlpha=dim?0.14:(n.src?1:0.6);ctx.shadowColor=col;ctx.shadowBlur=dim?0:Math.min(22,r*1.5+5);ctx.fillStyle=col;ctx.beginPath();ctx.arc(p.sx,p.sy,r,0,6.2832);ctx.fill();
     if(n.id===pend3){ctx.globalAlpha=1;ctx.shadowBlur=0;ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.sx,p.sy,r+3,0,6.2832);ctx.stroke();}});
   ctx.globalCompositeOperation='source-over';ctx.shadowBlur=0;ctx.globalAlpha=1;
-  if(sel3&&selFam!=null){ctx.font="11px 'Share Tech Mono',ui-monospace,monospace";ctx.textAlign='center';ctx.fillStyle='#dff3ec';ctx.shadowColor='#000';ctx.shadowBlur=3;nodes.forEach(n=>{if(n.fam!==selFam)return;const p=n._p;if(p.zc<=1)return;const r=Math.max(1.6,(n.src?11:(n.smp?4.5:6))*p.sc*0.55);const lab=n.title.length>18?n.title.slice(0,17)+'…':n.title;ctx.fillText(lab,p.sx,p.sy+r+13);});ctx.shadowBlur=0;}
+  if(sel3&&selFam!=null){const now=performance.now();ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;nodes.forEach(n=>{if(n.fam!==selFam)return;const p=n._p;if(p.zc<=1)return;const r=Math.max(1.6,(n.src?11:(n.smp?4.5:6))*p.sc*0.55);
+    const title=n.title.length>20?n.title.slice(0,19)+'…':n.title;const art=n.artist.length>24?n.artist.slice(0,23)+'…':n.artist;
+    ctx.font="11px 'Share Tech Mono','Noto Sans JP',ui-monospace,monospace";ctx.fillStyle='#dff3ec';ctx.fillText(decodeText(title,labelStart,now,0),p.sx,p.sy+r+13);
+    ctx.font="9px 'Share Tech Mono','Noto Sans JP',ui-monospace,monospace";ctx.fillStyle='#79b8ab';ctx.fillText(decodeText(art,labelStart,now,70),p.sx,p.sy+r+24);
+  });ctx.shadowBlur=0;}
 }
 function startLoop3(){if(RAF3)return;const loop=()=>{if(!graphVisible()||!is3D()){RAF3=null;return;}if(!drag3)cam.az+=0.0016;cam.dist+=(cam.distT-cam.dist)*0.2;if(SIM.alpha>SIM.alphaMin)step3D();render3();RAF3=requestAnimationFrame(loop);};RAF3=requestAnimationFrame(loop);}
 function pickNode(e){if(!G3)return null;const r=$('#graph3d').getBoundingClientRect();const mx=e.clientX-r.left,my=e.clientY-r.top;let best=null,bd=18;G3.nodes.forEach(n=>{if(!n._p||n._p.zc<=1)return;const d=Math.hypot(n._p.sx-mx,n._p.sy-my);if(d<bd){bd=d;best=n;}});return best;}
-function nodeClick(n){if(!n){if(!GCONNECT)sel3=null;return;}if(GCONNECT){if(pend3===null)pend3=n.id;else if(pend3===n.id)pend3=null;else{createLink(pend3,n.id);pend3=null;}}else{sel3=(sel3===n.id?null:n.id);}}
+function nodeClick(n){if(!n){if(!GCONNECT)sel3=null;return;}if(GCONNECT){if(pend3===null)pend3=n.id;else if(pend3===n.id)pend3=null;else{createLink(pend3,n.id);pend3=null;}}else{sel3=(sel3===n.id?null:n.id);if(sel3)labelStart=performance.now();}}
 function camZ2(n){const sa=Math.sin(cam.az),ca=Math.cos(cam.az),ce=Math.cos(cam.el),se=Math.sin(cam.el);const z1=-n.x*sa+n.z*ca;return n.y*se+z1*ce;}
 function unproj3(sx,sy,z2){const ca=Math.cos(cam.az),sa=Math.sin(cam.az),ce=Math.cos(cam.el),se=Math.sin(cam.el);const focal=W3H*0.9;const zc=cam.dist-z2;const sc=focal/Math.max(1,zc);const x1=(sx-W3W/2)/sc;const y2=-(sy-W3H/2)/sc;const y=y2*ce+z2*se;const z1=-y2*se+z2*ce;const x=x1*ca-z1*sa;const z=x1*sa+z1*ca;return {x,y,z};}
 function wire3(){const cv=$('#graph3d');if(!cv)return;

@@ -259,7 +259,7 @@ const PALETTE=['#e6552f','#3f8ad1','#8e5cd1','#2fa96b','#d1a02f','#c94f86','#4fb
 
 // ---------- state ----------
 let state={families:[],ann:{},cfg:{clientId:'',playlistId:DEFAULT_PLAYLIST}};
-function load(){try{const s=JSON.parse(localStorage.getItem(LSKEY));if(s&&s.ann){state={families:s.families||[],ann:s.ann||{},cfg:Object.assign({clientId:'',playlistId:DEFAULT_PLAYLIST},s.cfg||{})};}}catch(e){}}
+function load(){try{const s=JSON.parse(localStorage.getItem(LSKEY));if(s&&s.ann){state=Object.assign({families:[],ann:{},cfg:{}},s);state.families=state.families||[];state.ann=state.ann||{};state.cfg=Object.assign({clientId:'',playlistId:DEFAULT_PLAYLIST},s.cfg||{});}}catch(e){}}
 let saveTimer=null;
 function save(){localStorage.setItem(LSKEY,JSON.stringify(state));if(typeof scheduleBackup==='function')scheduleBackup();$('#saveState').textContent='gespeichert ✓';clearTimeout(saveTimer);saveTimer=setTimeout(()=>$('#saveState').textContent='',1200);}
 function ann(id){return state.ann[id] ??= {fam:null,src:false,smp:false};}

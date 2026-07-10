@@ -72,6 +72,28 @@
   .badgecount{background:#3f6fd1;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px}
   .savedot{font-size:11px;color:var(--green);margin-left:4px}
   ol.steps{margin:6px 0 0 18px;padding:0;color:var(--sub);font-size:12.5px;line-height:1.8}
+  #graphSvg{width:100%;height:560px;background:#0c0c0d;border:1px solid var(--line);border-radius:8px;touch-action:none;display:block}
+  #graphSvg text{font-family:inherit;-webkit-user-select:none;user-select:none}
+  .gnode{cursor:grab}
+  .graph-legend{display:flex;gap:12px;flex-wrap:wrap;margin:6px 0 8px;font-size:12px;color:var(--sub)}
+  .graph-legend .lg{display:inline-flex;align-items:center;gap:5px}
+  #graphPanel.fullscreen{position:fixed;inset:0;z-index:60;margin:0;border-radius:0;max-height:none;overflow:auto;padding:14px 18px}
+  #graphPanel.fullscreen #graphSvg{height:calc(100vh - 150px)}
+  .gnode{cursor:grab}.gnode:active{cursor:grabbing}
+  .graph-wrap{position:relative}
+  .gburger{position:absolute;top:10px;left:10px;z-index:4;width:34px;height:34px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:8px;background:rgba(24,24,26,.85);border:1px solid var(--line);color:var(--txt);cursor:pointer}
+  .gburger:hover{border-color:#777}
+  .gburger.on{background:var(--green);border-color:var(--green);color:#04210f}
+  .gforces{position:absolute;top:52px;left:10px;z-index:3;display:flex;flex-direction:column;gap:10px;width:290px;max-height:calc(100% - 66px);overflow:auto;padding:12px 14px;background:rgba(20,20,22,.96);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.45)}
+  .gforces .fx{display:flex;flex-direction:column;font-size:11px;color:var(--sub);gap:3px}
+  .gforces .fx .row{display:flex;justify-content:space-between;gap:8px}
+  .gforces .fx output{color:var(--txt)}
+  .gforces input[type=range]{width:100%;accent-color:var(--green)}
+  #gForces.collapsed{display:none}
+  .gedge-hit{fill:none;stroke:transparent;stroke-width:12}
+  #graphSvg.connect{cursor:crosshair}
+  #graphSvg.connect .gedge{cursor:pointer}
+  .gnode.pending>circle{stroke:#fff;stroke-width:4}
 </style>
 </head>
 <body>
@@ -96,6 +118,7 @@
   <button id="btnSort">Sortieren: aus</button>
   <button id="btnFamPanel">Familien</button>
   <button id="btnCheck">Prüfen</button>
+  <button id="btnGraph">Graph</button>
   <button id="btnSpotify">Spotify</button>
   <button id="btnData">Speichern / Laden</button>
   <button id="btnExport" class="primary">Export</button>
@@ -142,12 +165,55 @@
   <div id="spMsg" class="mini"></div>
 </div>
 
+<div id="graphPanel" class="panel">
+  <h3>Beziehungs-Graph <span id="gStats" class="mini"></span></h3>
+  <div class="tabs">
+    <button id="gRelayout">Neu anordnen</button>
+    <button id="gConnect">Verbinden: aus</button>
+    <button id="gAutoLinks">Auto-Verbindungen</button>
+    <button id="gZoomIn">＋</button>
+    <button id="gZoomOut">－</button>
+    <button id="gReset">Ansicht</button>
+    <button id="gFull">Vollansicht</button>
+    <span class="mini" id="gHint" style="margin-left:8px;flex-basis:100%">Knoten ziehen · Mausrad = Zoom · Hintergrund ziehen = verschieben · Knoten klicken = Familie hervorheben</span>
+  </div>
+  <div class="graph-legend" id="gLegend"></div>
+  <div class="graph-wrap">
+    <button id="gBurger" class="gburger" title="Regler" aria-label="Regler"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    <div class="gforces collapsed" id="gForces">
+    <label class="fx"><span class="row"><span>Abstoßung</span><output id="fxCHv"></output></span><input type="range" id="fxCH" min="0" max="600" step="10"></label>
+    <label class="fx"><span class="row"><span>Verbindungsstärke</span><output id="fxLKv"></output></span><input type="range" id="fxLK" min="0" max="1" step="0.02"></label>
+    <label class="fx"><span class="row"><span>Verbindungslänge</span><output id="fxLNKv"></output></span><input type="range" id="fxLNK" min="30" max="220" step="5"></label>
+    <label class="fx"><span class="row"><span>Familien-Zusammenhalt</span><output id="fxCOHv"></output></span><input type="range" id="fxCOH" min="0" max="0.4" step="0.01"></label>
+    <label class="fx"><span class="row"><span>Familien-Abstand</span><output id="fxHUBv"></output></span><input type="range" id="fxHUB" min="0" max="400" step="10"></label>
+    <label class="fx"><span class="row"><span>Dämpfung</span><output id="fxDAMPv"></output></span><input type="range" id="fxDAMP" min="10" max="85" step="1"></label>
+    <label class="fx"><span class="row"><span>Zentrierung</span><output id="fxCENv"></output></span><input type="range" id="fxCEN" min="0.004" max="0.05" step="0.002"></label>
+    <button id="gSetDefault" class="primary">Als Standard</button>
+    <button id="gForceReset">Standard</button>
+    <span class="mini" id="gForceMsg"></span>
+  </div>
+    <svg id="graphSvg"></svg>
+  </div>
+  <div class="mini" id="gEmpty" style="margin-top:8px"></div>
+</div>
 <div id="famPanel" class="panel"></div>
 <div id="checkPanel" class="panel"></div>
 
 <div id="dataPanel" class="panel">
   <h3>Markierungen speichern / laden</h3>
-  <div class="hint">Familien &amp; Flags werden automatisch im Browser gespeichert. Für Sicherung / Geräte-Umzug hier als JSON exportieren/importieren.</div>
+  <div class="hint">Deine Änderungen (Tags, Familien, Verbindungen, Reihenfolge, Regler-Werte) liegen im Browser-Speicher der Seite und bleiben beim Veröffentlichen einer neuen Version <b>erhalten</b> – der Speicher hängt an der Adresse, nicht an der Datei. Für zusätzliche Sicherheit richte ein automatisches Datei-Backup ein.</div>
+  <div class="sctn">
+    <b>Automatisches Datei-Backup</b>
+    <div class="mini">Einmalig eine Backup-Datei auf deinem Rechner verbinden – danach wird bei jeder Änderung automatisch dorthin gesichert (Chrome/Edge). Überall nutzbar: „Backup herunterladen“.</div>
+    <div class="tabs">
+      <button id="bkConnect" class="primary">Backup-Datei verbinden</button>
+      <button id="bkDownload">Backup herunterladen</button>
+      <button id="bkRestore">Aus Datei wiederherstellen</button>
+    </div>
+    <div class="mini" id="bkStatus">Auto-Backup: nicht eingerichtet.</div>
+    <input type="file" id="bkFile" accept="application/json,.json" style="display:none">
+  </div>
+  <div class="hint" style="margin-top:6px">Manueller Text-Export/Import (alles in einem JSON):</div>
   <div class="tabs">
     <button id="dExport">Markierungen exportieren</button>
     <button id="dImport" class="primary">Importieren</button>
@@ -183,6 +249,7 @@ let tracks=RAW.map(t=>({...t}));
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const list=$('#list');
 const LSKEY='slw_state_v2',CACHEKEY='slw_playlist_cache_v1',TOKKEY='slw_spotify_tok',PKCEKEY='slw_pkce';
+let bkHandle=null,bkTimer=null;
 const DEFAULT_PLAYLIST='2zHRF72BdAwFcdethu1EcE';
 const SCOPES='playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private user-read-email';
 const REDIRECT=location.origin+location.pathname;
@@ -192,7 +259,7 @@ const PALETTE=['#e6552f','#3f8ad1','#8e5cd1','#2fa96b','#d1a02f','#c94f86','#4fb
 let state={families:[],ann:{},cfg:{clientId:'',playlistId:DEFAULT_PLAYLIST}};
 function load(){try{const s=JSON.parse(localStorage.getItem(LSKEY));if(s&&s.ann){state={families:s.families||[],ann:s.ann||{},cfg:Object.assign({clientId:'',playlistId:DEFAULT_PLAYLIST},s.cfg||{})};}}catch(e){}}
 let saveTimer=null;
-function save(){localStorage.setItem(LSKEY,JSON.stringify(state));$('#saveState').textContent='gespeichert ✓';clearTimeout(saveTimer);saveTimer=setTimeout(()=>$('#saveState').textContent='',1200);}
+function save(){localStorage.setItem(LSKEY,JSON.stringify(state));if(typeof scheduleBackup==='function')scheduleBackup();$('#saveState').textContent='gespeichert ✓';clearTimeout(saveTimer);saveTimer=setTimeout(()=>$('#saveState').textContent='',1200);}
 function ann(id){return state.ann[id] ??= {fam:null,src:false,smp:false};}
 function famById(id){return state.families.find(f=>f.id===id);}
 function famColor(id){const f=famById(id);return f?f.color:null;}
@@ -258,7 +325,7 @@ function addDrag(row){
   row.addEventListener('dragstart',()=>{dragEl=row;row.classList.add('dragging');});
   row.addEventListener('dragend',()=>{row.classList.remove('dragging');$$('#list .row').forEach(r=>r.classList.remove('dropbefore'));});
   row.addEventListener('dragover',e=>{e.preventDefault();$$('#list .row').forEach(r=>r.classList.remove('dropbefore'));row.classList.add('dropbefore');});
-  row.addEventListener('drop',e=>{e.preventDefault();const from=+dragEl.dataset.i,to=+row.dataset.i;if(from===to)return;const[m]=tracks.splice(from,1);tracks.splice(from<to?to-1:to,0,m);render();});
+  row.addEventListener('drop',e=>{e.preventDefault();const from=+dragEl.dataset.i,to=+row.dataset.i;if(from===to)return;const[m]=tracks.splice(from,1);tracks.splice(from<to?to-1:to,0,m);try{localStorage.setItem(CACHEKEY,JSON.stringify(tracks));}catch(e){}if(typeof scheduleBackup==='function')scheduleBackup();render();});
 }
 // ---------- batch ops ----------
 $('#bNew').onclick=()=>{if(!batch.size)return;const nm=prompt('Name der neuen Familie:',suggestName());if(nm===null)return;const fid=newFamily(nm);batch.forEach(id=>ann(id).fam=fid);autoRoles(fid);save();render();};
@@ -298,9 +365,40 @@ function buildCheck(){
   p.innerHTML=h;
 }
 // ---------- data import/export ----------
-$('#dExport').onclick=()=>{$('#dArea').value=JSON.stringify(state,null,2);$('#dMsg').textContent='Exportiert – Text sichern.';};
-$('#dImport').onclick=()=>{try{const s=JSON.parse($('#dArea').value);if(!s.ann||!s.families)throw 0;state=Object.assign({cfg:{clientId:'',playlistId:DEFAULT_PLAYLIST}},s);save();buildFam();render();updSpotifyUI();$('#dMsg').textContent='Importiert ✓';}catch(e){$('#dMsg').textContent='Ungültiges JSON.';}};
+$('#dExport').onclick=()=>{$('#dArea').value=JSON.stringify(backupPayload(),null,2);$('#dMsg').textContent='Exportiert – Text sichern.';};
+$('#dImport').onclick=()=>{try{applyBackup(JSON.parse($('#dArea').value));$('#dMsg').textContent='Importiert ✓';}catch(e){$('#dMsg').textContent='Ungültiges JSON.';}};
 $('#dWipe').onclick=()=>{if(confirm('Wirklich ALLE Familien und Flags löschen?')){state={families:[],ann:{},cfg:state.cfg};save();buildFam();buildCheck();render();$('#dMsg').textContent='Gelöscht.';}};
+// ---------- Backup-Engine ----------
+function backupPayload(){return {app:'soundslikewhat',v:3,savedAt:new Date().toISOString(),state,order:tracks};}
+function applyBackup(obj){const st=(obj&&obj.state)?obj.state:obj;if(!st||!st.ann||!st.families)throw new Error('kein gültiges Backup');state=Object.assign({cfg:{clientId:'',playlistId:DEFAULT_PLAYLIST}},st);if(obj&&Array.isArray(obj.order)&&obj.order.length){tracks=obj.order.map(t=>({...t}));try{localStorage.setItem(CACHEKEY,JSON.stringify(tracks));}catch(e){}}save();initForces();render();updSpotifyUI();bkResume();if($('#famPanel').style.display==='block')buildFam();}
+function bkMsg(t){const el=$('#bkStatus');if(el)el.textContent=t;}
+function bkStamp(){bkMsg('Auto-Backup aktiv → zuletzt gesichert '+new Date().toLocaleTimeString());}
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('slw_kv',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function idbSet(k,v){const db=await idb();return new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});}
+async function idbGet(k){const db=await idb();return new Promise((res,rej)=>{const t=db.transaction('kv','readonly');const rq=t.objectStore('kv').get(k);rq.onsuccess=()=>res(rq.result);rq.onerror=()=>rej(rq.error);});}
+function scheduleBackup(){if(!bkHandle)return;clearTimeout(bkTimer);bkTimer=setTimeout(writeBackup,1500);}
+async function writeBackup(){if(!bkHandle)return;try{const w=await bkHandle.createWritable();await w.write(JSON.stringify(backupPayload(),null,2));await w.close();bkStamp();}catch(e){bkMsg('Backup-Schreibfehler: '+(e.message||e.name)+' – ggf. „Backup-Datei verbinden“ erneut klicken.');}}
+function bkDownload(){const blob=new Blob([JSON.stringify(backupPayload(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);const d=new Date();a.download='soundslikewhat-backup-'+d.toISOString().slice(0,16).replace(/[:T]/g,'-')+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);}
+async function bkConnect(){
+  if(!window.showSaveFilePicker){bkMsg('Dieser Browser unterstützt Datei-Auto-Backup nicht (Chrome/Edge nötig). „Backup herunterladen“ funktioniert überall.');return;}
+  try{let h=bkHandle||await idbGet('backupHandle');
+    if(h){const p=await h.requestPermission({mode:'readwrite'});if(p==='granted'){bkHandle=h;await idbSet('backupHandle',h);await writeBackup();return;}}
+  }catch(e){}
+  try{const h=await window.showSaveFilePicker({suggestedName:'soundslikewhat-backup.json',types:[{description:'JSON',accept:{'application/json':['.json']}}]});bkHandle=h;await idbSet('backupHandle',h);await writeBackup();}
+  catch(e){if(e.name!=='AbortError')bkMsg('Konnte Datei nicht verbinden: '+(e.message||e.name));}
+}
+async function bkResume(){
+  if(!window.showSaveFilePicker){bkMsg('Auto-Backup (Datei) nur in Chrome/Edge. Nutze sonst „Backup herunterladen“.');return;}
+  try{const h=await idbGet('backupHandle');if(!h){bkMsg('Auto-Backup: nicht eingerichtet.');return;}
+    const p=await h.queryPermission({mode:'readwrite'});
+    if(p==='granted'){bkHandle=h;bkMsg('Auto-Backup verbunden ✓ (Datei bereit).');}
+    else{bkMsg('Auto-Backup pausiert – klicke „Backup-Datei verbinden“, um es fortzusetzen.');}
+  }catch(e){bkMsg('Auto-Backup: nicht eingerichtet.');}
+}
+$('#bkConnect').onclick=bkConnect;
+$('#bkDownload').onclick=bkDownload;
+$('#bkRestore').onclick=()=>$('#bkFile').click();
+$('#bkFile').onchange=async e=>{const fl=e.target.files[0];if(!fl)return;try{applyBackup(JSON.parse(await fl.text()));bkMsg('Aus Datei wiederhergestellt ✓');}catch(err){bkMsg('Datei ungültig.');}e.target.value='';};
 // ---------- reorder export ----------
 let expFmt='uri';
 function buildExport(){
@@ -388,13 +486,124 @@ $('#spPlaylist').oninput=e=>{state.cfg.playlistId=e.target.value;save();};
 $('#spConnect').onclick=spConnect;$('#spLoad').onclick=spLoad;$('#spSave').onclick=spSave;$('#spWho').onclick=spWho;$('#spLogout').onclick=spLogout;
 $('#spCopyRedir').onclick=()=>{navigator.clipboard.writeText(REDIRECT);$('#spCopyRedir').textContent='kopiert ✓';setTimeout(()=>$('#spCopyRedir').textContent='kopieren',1200);};
 
+// ================= GRAPH (hierarchisch, editierbar) =================
+const GW=1000, GH=720;
+const FDEF={CH:220,LNK:80,LK:0.35,COH:0.10,HUB:140,VD:0.6,RC:0.08,CEN:0.012};
+let FX=Object.assign({},FDEF);
+let GDATA=null, GVB={x:0,y:0,w:GW,h:GH}, GSEL=null, GRAF=null, GDRAG=null, GWIRED=false;
+let GCONNECT=false, GPEND=null, GPOS={};
+let SIM={alpha:0, alphaTarget:0, alphaDecay:0.0228, alphaMin:0.02};
+function svgEl(tag,attrs){const e=document.createElementNS('http://www.w3.org/2000/svg',tag);if(attrs)for(const k in attrs)e.setAttribute(k,attrs[k]);return e;}
+function seedLinksFromFamilies(){const L=[];state.families.forEach(f=>{const mem=tracks.map((t,i)=>({t,i})).filter(o=>ann(o.t.id).fam===f.id).sort((a,b)=>a.i-b.i);for(let k=1;k<mem.length;k++){const A=mem[k-1],B=mem[k];let from=A.t.id,to=B.t.id;const aa=ann(A.t.id),bb=ann(B.t.id);if(bb.src&&!bb.smp&&aa.smp&&!aa.src){from=B.t.id;to=A.t.id;}L.push({from,to});}});state.links=L;save();}
+function ensureLinks(){if(!Array.isArray(state.links))seedLinksFromFamilies();}
+function graphData(){
+  const nodes=[],idToNode={};
+  state.families.forEach(f=>{
+    const mem=tracks.map((t,i)=>({t,i})).filter(o=>ann(o.t.id).fam===f.id).sort((a,b)=>a.i-b.i);
+    mem.forEach(o=>{const a=ann(o.t.id);const n={id:o.t.id,title:o.t.title,artist:o.t.artist,pos:o.i+1,fam:f.id,color:f.color,src:!!a.src,smp:!!a.smp};nodes.push(n);idToNode[o.t.id]=n;});
+  });
+  tracks.forEach((t,i)=>{const a=ann(t.id);if(!a.fam&&(a.src||a.smp)){const n={id:t.id,title:t.title,artist:t.artist,pos:i+1,fam:null,color:'#5a5a5f',src:!!a.src,smp:!!a.smp,orphan:true};nodes.push(n);idToNode[t.id]=n;}});
+  ensureLinks();
+  const edges=[];const seen={};
+  state.links.forEach(l=>{const a=idToNode[l.from],b=idToNode[l.to];if(a&&b){const key=l.from+'>'+l.to;if(seen[key])return;seen[key]=1;edges.push({from:l.from,to:l.to,color:a.orphan?'#6a6a70':a.color});}});
+  return {nodes,edges,idToNode};
+}
+function applyVB(){$('#graphSvg').setAttribute('viewBox',GVB.x+' '+GVB.y+' '+GVB.w+' '+GVB.h);}
+function fitView(){const ns=GDATA?GDATA.nodes:[];if(!ns.length){GVB={x:0,y:0,w:GW,h:GH};applyVB();return;}let a=1e9,b=1e9,c=-1e9,d=-1e9;ns.forEach(n=>{a=Math.min(a,n.x);b=Math.min(b,n.y);c=Math.max(c,n.x);d=Math.max(d,n.y);});const pad=110;GVB={x:a-pad,y:b-pad,w:Math.max(260,c-a+2*pad),h:Math.max(260,d-b+2*pad)};applyVB();}
+function graphVisible(){return $('#graphPanel').style.display==='block';}
+function buildGraph(keep){
+  GDATA=graphData();const g=GDATA;const svg=$('#graphSvg');
+  $('#gStats').textContent=g.nodes.length+' Knoten · '+g.edges.length+' Verbindungen · '+state.families.length+' Familien';
+  const inFam=new Set();g.nodes.forEach(n=>{if(n.fam)inFam.add(n.id);});
+  $('#gEmpty').innerHTML=g.nodes.length?('Gezeigt werden nur Titel mit Familie oder Rolle. '+(tracks.length-inFam.size)+' von '+tracks.length+' Titeln sind noch ohne Familie – im Markieren-Modus zuordnen oder „Auto-Vorschlag“ nutzen.'):'<span class="warn">Noch keine Familien/Rollen vergeben. Leg im Reiter „Familien“ welche an (oder „Auto-Vorschlag“), dann erscheint hier der Graph.</span>';
+  let lg='<span class="lg"><span class="dot" style="background:#cfcfd4"></span>Original (voll)</span><span class="lg"><span class="dot" style="background:#cfcfd4;opacity:.5"></span>Sampler (gedimmt)</span>';
+  state.families.forEach(f=>{lg+=`<span class="lg"><span class="dot" style="background:${f.color}"></span>${esc(f.name)}</span>`;});
+  $('#gLegend').innerHTML=lg;
+  svg.innerHTML='';
+  const defs=svgEl('defs');const mk=svgEl('marker',{id:'arrow',viewBox:'0 0 10 10',refX:'8',refY:'5',markerWidth:'6',markerHeight:'6',orient:'auto-start-reverse'});mk.appendChild(svgEl('path',{d:'M0 0 L10 5 L0 10 z',fill:'context-stroke'}));defs.appendChild(mk);svg.appendChild(defs);
+  const gE=svgEl('g');svg.appendChild(gE);const gN=svgEl('g');svg.appendChild(gN);
+  g.edges.forEach(e=>{const grp=svgEl('g',{class:'gedge'});grp.dataset.from=e.from;grp.dataset.to=e.to;e.hit=svgEl('line',{class:'gedge-hit'});grp.appendChild(e.hit);e.line=svgEl('line',{stroke:e.color,'stroke-width':'1.6','marker-end':'url(#arrow)',opacity:'0.5','stroke-linecap':'round'});grp.appendChild(e.line);e.grp=grp;gE.appendChild(grp);});
+  g.nodes.forEach(n=>{
+    const pv=GPOS[n.id];n.x=pv?pv.x:GW/2+(Math.random()-.5)*380;n.y=pv?pv.y:GH/2+(Math.random()-.5)*380;n.vx=0;n.vy=0;
+    const grp=svgEl('g',{class:'gnode'});grp.dataset.id=n.id;
+    const op=n.src?1:(n.smp?0.5:0.82);
+    grp.appendChild(svgEl('circle',{r:'14',fill:n.orphan?'#4a4a52':n.color,'fill-opacity':op}));
+    const lab=n.title.length>22?n.title.slice(0,21)+'…':n.title;
+    const t1=svgEl('text',{'text-anchor':'middle',y:'27','font-size':'11',fill:'#e8e8ea'});t1.textContent=lab;grp.appendChild(t1);
+    const t2=svgEl('text',{'text-anchor':'middle',y:'39','font-size':'9',fill:'#8a8a90'});t2.textContent=n.artist.length>26?n.artist.slice(0,25)+'…':n.artist;grp.appendChild(t2);
+    n.g=grp;gN.appendChild(grp);
+  });
+  applyHighlight();updatePending();
+  if(keep){reheat(0.25);}else{GVB={x:0,y:0,w:GW,h:GH};applyVB();SIM.alpha=1;SIM.alphaTarget=0;startLoop();setTimeout(()=>{if(graphVisible())fitView();},1100);}
+  if(!GWIRED){graphInteractions();GWIRED=true;}
+}
+function step(){
+  const g=GDATA;if(!g)return;const {nodes,edges,idToNode}=g;const N=nodes.length;if(!N)return;const a=SIM.alpha;
+  const fam={};nodes.forEach(n=>{const kk=n.fam||('o'+n.id);n._hk=kk;(fam[kk]=fam[kk]||[]).push(n);});
+  const anc={};for(const k in fam){const ms=fam[k].filter(m=>m.src);const base=ms.length?ms:fam[k];let x=0,y=0;base.forEach(m=>{x+=m.x;y+=m.y;});anc[k]={x:x/base.length,y:y/base.length};}
+  for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){const p=nodes[i],q=nodes[j];let dx=p.x-q.x,dy=p.y-q.y;let d2=dx*dx+dy*dy||1;let w=FX.CH*a/d2;p.vx+=dx*w;p.vy+=dy*w;q.vx-=dx*w;q.vy-=dy*w;}
+  edges.forEach(e=>{const p=idToNode[e.from],q=idToNode[e.to];if(!p||!q)return;let dx=q.x-p.x,dy=q.y-p.y;let d=Math.hypot(dx,dy)||1;let f=(d-FX.LNK)/d*FX.LK*a;p.vx+=dx*f;p.vy+=dy*f;q.vx-=dx*f;q.vy-=dy*f;});
+  nodes.forEach(n=>{const c=anc[n._hk];n.vx+=(c.x-n.x)*FX.COH*a;n.vy+=(c.y-n.y)*FX.COH*a;});
+  const hs=Object.keys(anc);for(let i=0;i<hs.length;i++)for(let j=i+1;j<hs.length;j++){const Aa=anc[hs[i]],Bb=anc[hs[j]];let dx=Aa.x-Bb.x,dy=Aa.y-Bb.y;let d=Math.hypot(dx,dy)||1;let w=FX.HUB*a/d;fam[hs[i]].forEach(n=>{n.vx+=dx/d*w;n.vy+=dy/d*w;});fam[hs[j]].forEach(n=>{n.vx-=dx/d*w;n.vy-=dy/d*w;});}
+  nodes.forEach(n=>{if(n===GDRAG)return;n.vx+=(GW/2-n.x)*FX.CEN*a;n.vy+=(GH/2-n.y)*FX.CEN*a;});
+  nodes.forEach(n=>{if(n===GDRAG){n.vx=0;n.vy=0;return;}n.vx*=FX.VD;n.vy*=FX.VD;n.x+=n.vx;n.y+=n.vy;});
+  let mx=0,my=0;nodes.forEach(n=>{mx+=n.x;my+=n.y;});mx/=N;my/=N;nodes.forEach(n=>{if(n===GDRAG)return;n.x+=(GW/2-mx)*FX.RC;n.y+=(GH/2-my)*FX.RC;});
+  SIM.alpha+=(SIM.alphaTarget-SIM.alpha)*SIM.alphaDecay;
+}
+function updateDOM(){
+  const g=GDATA;if(!g)return;const {nodes,edges,idToNode}=g;
+  nodes.forEach(n=>{n.g.setAttribute('transform','translate('+n.x.toFixed(2)+','+n.y.toFixed(2)+')');GPOS[n.id]={x:n.x,y:n.y};});
+  edges.forEach(e=>{const p=idToNode[e.from],q=idToNode[e.to];if(!p||!q)return;let dx=q.x-p.x,dy=q.y-p.y,d=Math.hypot(dx,dy)||1,r=15;const x1=(p.x+dx/d*r).toFixed(2),y1=(p.y+dy/d*r).toFixed(2),x2=(q.x-dx/d*r).toFixed(2),y2=(q.y-dy/d*r).toFixed(2);e.line.setAttribute('x1',x1);e.line.setAttribute('y1',y1);e.line.setAttribute('x2',x2);e.line.setAttribute('y2',y2);e.hit.setAttribute('x1',x1);e.hit.setAttribute('y1',y1);e.hit.setAttribute('x2',x2);e.hit.setAttribute('y2',y2);});
+}
+function applyHighlight(){
+  const g=GDATA;if(!g)return;const {nodes,edges,idToNode}=g;
+  const selFam=GSEL&&idToNode[GSEL]?idToNode[GSEL].fam:undefined;
+  const neigh=new Set();if(GSEL){neigh.add(GSEL);edges.forEach(e=>{if(e.from===GSEL)neigh.add(e.to);if(e.to===GSEL)neigh.add(e.from);});}
+  nodes.forEach(n=>{let dim=GSEL&&(selFam!=null?n.fam!==selFam:!neigh.has(n.id));n.g.setAttribute('opacity',dim?0.18:1);});
+  edges.forEach(e=>{const a=idToNode[e.from],b=idToNode[e.to];let dim=GSEL&&(selFam!=null?!(a&&b&&a.fam===selFam&&b.fam===selFam):!(e.from===GSEL||e.to===GSEL));e.line.setAttribute('stroke',dim?'#2a2a2d':e.color);e.line.setAttribute('opacity',dim?0.22:0.5);e.line.setAttribute('stroke-width',dim?1:1.6);});
+}
+function startLoop(){if(GRAF)return;const loop=()=>{if(!graphVisible()){GRAF=null;return;}const active=SIM.alpha>SIM.alphaMin||GDRAG;if(active)step();updateDOM();if(active){GRAF=requestAnimationFrame(loop);}else{GRAF=null;}};GRAF=requestAnimationFrame(loop);}
+function reheat(v){SIM.alpha=Math.max(SIM.alpha,v);startLoop();}
+function updatePending(){$$('#graphSvg .gnode').forEach(g=>g.classList.toggle('pending',GPEND!=null&&g.dataset.id===GPEND));}
+function createLink(from,to){if(from===to)return;ensureLinks();state.links=state.links.filter(l=>!(l.from===to&&l.to===from));if(!state.links.some(l=>l.from===from&&l.to===to))state.links.push({from,to});ann(from).src=true;ann(to).smp=true;save();buildGraph(true);}
+function deleteLink(from,to){ensureLinks();state.links=state.links.filter(l=>!(l.from===from&&l.to===to));save();buildGraph(true);}
+function pendClick(id){if(GPEND===null){GPEND=id;}else if(GPEND===id){GPEND=null;}else{createLink(GPEND,id);GPEND=null;}updatePending();}
+function graphInteractions(){
+  const svg=$('#graphSvg');let last=null,panning=false,moved=false;
+  function toG(e){const pt=svg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const m=svg.getScreenCTM();if(!m)return{x:0,y:0};const p=pt.matrixTransform(m.inverse());return{x:p.x,y:p.y};}
+  svg.addEventListener('mousedown',e=>{moved=false;
+    if(GCONNECT){const nEl=e.target.closest('.gnode');const eEl=e.target.closest('.gedge');if(nEl){pendClick(nEl.dataset.id);}else if(eEl){deleteLink(eEl.dataset.from,eEl.dataset.to);}else{panning=true;last={x:e.clientX,y:e.clientY};}return;}
+    const el=e.target.closest('.gnode');
+    if(el){GDRAG=GDATA.idToNode[el.dataset.id];const p=toG(e);GDRAG.x=p.x;GDRAG.y=p.y;SIM.alphaTarget=0.3;SIM.alpha=Math.max(SIM.alpha,0.3);startLoop();}else{panning=true;last={x:e.clientX,y:e.clientY};}});
+  window.addEventListener('mousemove',e=>{if(GDRAG){const p=toG(e);GDRAG.x=p.x;GDRAG.y=p.y;moved=true;}else if(panning){const rect=svg.getBoundingClientRect();GVB.x-=(e.clientX-last.x)*GVB.w/rect.width;GVB.y-=(e.clientY-last.y)*GVB.h/rect.height;last={x:e.clientX,y:e.clientY};moved=true;applyVB();}});
+  window.addEventListener('mouseup',()=>{if(!GCONNECT&&GDRAG&&!moved){GSEL=(GSEL===GDRAG.id?null:GDRAG.id);applyHighlight();}if(GDRAG){GDRAG=null;SIM.alphaTarget=0;reheat(0.15);}panning=false;});
+  svg.addEventListener('wheel',e=>{e.preventDefault();const rect=svg.getBoundingClientRect();const mx=(e.clientX-rect.left)/rect.width,my=(e.clientY-rect.top)/rect.height;const f=e.deltaY<0?0.85:1.18;GVB.x+=GVB.w*mx*(1-f);GVB.y+=GVB.h*my*(1-f);GVB.w*=f;GVB.h*=f;applyVB();},{passive:false});
+}
+$('#gRelayout').onclick=()=>{if(!GDATA)return;GDATA.nodes.forEach(n=>{GPOS[n.id]=null;n.x=GW/2+(Math.random()-.5)*380;n.y=GH/2+(Math.random()-.5)*380;n.vx=0;n.vy=0;});SIM.alpha=1;SIM.alphaTarget=0;startLoop();setTimeout(()=>{if(graphVisible())fitView();},1100);};
+$('#gConnect').onclick=e=>{GCONNECT=!GCONNECT;e.target.classList.toggle('on',GCONNECT);e.target.textContent='Verbinden: '+(GCONNECT?'an':'aus');$('#graphSvg').classList.toggle('connect',GCONNECT);GPEND=null;updatePending();$('#gHint').textContent=GCONNECT?'Verbinden-Modus: zwei Knoten nacheinander klicken = Verbindung (Original → Sampler) · auf eine Verbindung klicken = löschen':'Knoten ziehen · Mausrad = Zoom · Hintergrund ziehen = verschieben · Knoten klicken = Familie hervorheben';};
+$('#gAutoLinks').onclick=()=>{if(confirm('Verbindungen neu aus den Familien erzeugen? Bestehende manuelle Verbindungen werden dabei ersetzt.')){seedLinksFromFamilies();buildGraph(true);}};
+$('#gZoomIn').onclick=()=>{GVB.x+=GVB.w*0.1;GVB.y+=GVB.h*0.1;GVB.w*=0.8;GVB.h*=0.8;applyVB();};
+$('#gZoomOut').onclick=()=>{GVB.x-=GVB.w*0.125;GVB.y-=GVB.h*0.125;GVB.w*=1.25;GVB.h*=1.25;applyVB();};
+$('#gReset').onclick=()=>{GSEL=null;applyHighlight();fitView();};
+$('#gFull').onclick=e=>{const p=$('#graphPanel');const on=p.classList.toggle('fullscreen');e.target.textContent=on?'Vollansicht schließen':'Vollansicht';setTimeout(()=>{if(graphVisible()){fitView();reheat(0.2);}},60);};
+$('#gBurger').onclick=()=>{const hidden=$('#gForces').classList.toggle('collapsed');state.gforcesOpen=!hidden;save();$('#gBurger').classList.toggle('on',!hidden);};
+window.addEventListener('keydown',e=>{if(e.key==='Escape'){const p=$('#graphPanel');if(p.classList.contains('fullscreen')){p.classList.remove('fullscreen');$('#gFull').textContent='Vollansicht';setTimeout(fitView,60);}}});
+function updFxOut(){$('#fxCHv').textContent=FX.CH;$('#fxLKv').textContent=FX.LK.toFixed(2);$('#fxLNKv').textContent=FX.LNK;$('#fxCOHv').textContent=FX.COH.toFixed(2);$('#fxHUBv').textContent=FX.HUB;$('#fxCENv').textContent=FX.CEN.toFixed(3);$('#fxDAMPv').textContent=Math.round((1-FX.VD)*100)+'%';}
+function initForces(){if(state.gfx)Object.assign(FX,state.gfx);const S=(id,v)=>{const e=$(id);if(e)e.value=v;};S('#fxCH',FX.CH);S('#fxLK',FX.LK);S('#fxLNK',FX.LNK);S('#fxCOH',FX.COH);S('#fxHUB',FX.HUB);S('#fxCEN',FX.CEN);S('#fxDAMP',Math.round((1-FX.VD)*100));updFxOut();const _op=!!state.gforcesOpen;$('#gForces').classList.toggle('collapsed',!_op);const _b=$('#gBurger');if(_b)_b.classList.toggle('on',_op);}
+function bindFx(id,key){const e=$(id);if(!e)return;e.addEventListener('input',ev=>{FX[key]=Number(ev.target.value);state.gfx=Object.assign({},FX);save();updFxOut();reheat(0.4);});}
+bindFx('#fxCH','CH');bindFx('#fxLK','LK');bindFx('#fxLNK','LNK');bindFx('#fxCOH','COH');bindFx('#fxHUB','HUB');bindFx('#fxCEN','CEN');
+(function(){const e=$('#fxDAMP');if(e)e.addEventListener('input',ev=>{FX.VD=1-Number(ev.target.value)/100;state.gfx=Object.assign({},FX);save();updFxOut();reheat(0.4);});})();
+$('#gForceReset').onclick=()=>{FX=Object.assign({},state.gbase||FDEF);state.gfx=Object.assign({},FX);save();initForces();reheat(0.5);};
+$('#gSetDefault').onclick=()=>{state.gbase=Object.assign({},FX);save();const m=$('#gForceMsg');if(m){m.textContent='Als Standard gespeichert ✓';setTimeout(()=>m.textContent='',1600);}};
+
 // ---------- toolbar / panels ----------
 $('#q').oninput=render;$('#ctx').onchange=render;
-function togglePanel(sel,btn){const p=$(sel);const open=p.style.display==='block';$$('.panel').forEach(x=>x.style.display='none');['#btnFamPanel','#btnCheck','#btnData','#btnSpotify'].forEach(id=>$(id).classList.remove('on'));if(!open){p.style.display='block';btn.classList.add('on');}}
+function togglePanel(sel,btn){const p=$(sel);const open=p.style.display==='block';$$('.panel').forEach(x=>x.style.display='none');['#btnFamPanel','#btnCheck','#btnGraph','#btnData','#btnSpotify'].forEach(id=>$(id).classList.remove('on'));if(!open){p.style.display='block';btn.classList.add('on');}}
 $('#btnEdit').onclick=e=>{editMode=!editMode;e.target.classList.toggle('on',editMode);e.target.textContent='Markieren-Modus: '+(editMode?'an':'aus');$('#editHint').style.display=editMode?'inline':'none';if(editMode){sortMode=false;$('#btnSort').classList.remove('on');$('#btnSort').textContent='Sortieren: aus';selId=null;}render();};
 $('#btnSort').onclick=e=>{sortMode=!sortMode;e.target.classList.toggle('on',sortMode);e.target.textContent='Sortieren: '+(sortMode?'an (ziehen)':'aus');if(sortMode){editMode=false;$('#btnEdit').classList.remove('on');$('#btnEdit').textContent='Markieren-Modus: aus';$('#editHint').style.display='none';}render();};
 $('#btnFamPanel').onclick=e=>{togglePanel('#famPanel',e.target);if($('#famPanel').style.display==='block')buildFam();};
 $('#btnCheck').onclick=e=>{togglePanel('#checkPanel',e.target);if($('#checkPanel').style.display==='block')buildCheck();};
+$('#btnGraph').onclick=e=>{togglePanel('#graphPanel',e.target);if($('#graphPanel').style.display==='block')buildGraph();};
 $('#btnSpotify').onclick=e=>{togglePanel('#spotifyPanel',e.target);updSpotifyUI();};
 $('#btnData').onclick=e=>{togglePanel('#dataPanel',e.target);};
 $('#btnExport').onclick=openModal;
@@ -402,7 +611,7 @@ $('#btnExport').onclick=openModal;
 // ---------- init ----------
 load();
 (function initData(){try{const c=JSON.parse(localStorage.getItem(CACHEKEY));if(c&&c.length){tracks=c.map(t=>({...t}));$('#srcNote').textContent='zuletzt aus Spotify geladen ('+tracks.length+' Titel)';}}catch(e){}})();
-render();updSpotifyUI();
+initForces();render();updSpotifyUI();bkResume();
 handleRedirect().then(()=>{updSpotifyUI();if(tok())spLoad();});
 </script>
 </body>

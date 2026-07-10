@@ -183,13 +183,10 @@
   <div class="graph-wrap">
     <button id="gBurger" class="gburger" title="Regler" aria-label="Regler"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     <div class="gforces collapsed" id="gForces">
-    <label class="fx"><span class="row"><span>Abstoßung</span><output id="fxCHv"></output></span><input type="range" id="fxCH" min="0" max="600" step="10"></label>
-    <label class="fx"><span class="row"><span>Verbindungsstärke</span><output id="fxLKv"></output></span><input type="range" id="fxLK" min="0" max="1" step="0.02"></label>
-    <label class="fx"><span class="row"><span>Verbindungslänge</span><output id="fxLNKv"></output></span><input type="range" id="fxLNK" min="30" max="220" step="5"></label>
-    <label class="fx"><span class="row"><span>Familien-Zusammenhalt</span><output id="fxCOHv"></output></span><input type="range" id="fxCOH" min="0" max="0.4" step="0.01"></label>
-    <label class="fx"><span class="row"><span>Familien-Abstand</span><output id="fxHUBv"></output></span><input type="range" id="fxHUB" min="0" max="400" step="10"></label>
-    <label class="fx"><span class="row"><span>Dämpfung</span><output id="fxDAMPv"></output></span><input type="range" id="fxDAMP" min="10" max="85" step="1"></label>
-    <label class="fx"><span class="row"><span>Zentrierung</span><output id="fxCENv"></output></span><input type="range" id="fxCEN" min="0.004" max="0.05" step="0.002"></label>
+    <label class="fx"><span class="row"><span>Zentrierkraft</span><output id="fxCENv"></output></span><input type="range" id="fxCEN" min="0" max="0.06" step="0.002"></label>
+    <label class="fx"><span class="row"><span>Abstoßung</span><output id="fxREPv"></output></span><input type="range" id="fxREP" min="0" max="300" step="5"></label>
+    <label class="fx"><span class="row"><span>Verbindungskraft</span><output id="fxLINKv"></output></span><input type="range" id="fxLINK" min="0" max="1" step="0.02"></label>
+    <label class="fx"><span class="row"><span>Verbindungslänge</span><output id="fxDISTv"></output></span><input type="range" id="fxDIST" min="20" max="250" step="5"></label>
     <button id="gSetDefault" class="primary">Als Standard</button>
     <button id="gForceReset">Standard</button>
     <span class="mini" id="gForceMsg"></span>
@@ -490,7 +487,7 @@ $('#spCopyRedir').onclick=()=>{navigator.clipboard.writeText(REDIRECT);$('#spCop
 
 // ================= GRAPH (hierarchisch, editierbar) =================
 const GW=1000, GH=720;
-const FDEF={CH:220,LNK:80,LK:0.35,COH:0.10,HUB:140,VD:0.6,RC:0.08,CEN:0.012};
+const FDEF={CEN:0.02,REP:80,LINK:0.4,DIST:90};
 let FX=Object.assign({},FDEF);
 let GDATA=null, GVB={x:0,y:0,w:GW,h:GH}, GSEL=null, GRAF=null, GDRAG=null, GWIRED=false;
 let GCONNECT=false, GPEND=null, GPOS={}, GVBT=null, zoomRAF=null;
@@ -544,16 +541,17 @@ function buildGraph(keep){
   if(!GWIRED){graphInteractions();GWIRED=true;}
 }
 function step(){
-  const g=GDATA;if(!g)return;const {nodes,edges,idToNode}=g;const N=nodes.length;if(!N)return;const a=SIM.alpha;
-  const fam={};nodes.forEach(n=>{const kk=n.fam||('o'+n.id);n._hk=kk;(fam[kk]=fam[kk]||[]).push(n);});
-  const anc={};for(const k in fam){const ms=fam[k].filter(m=>m.src);const base=ms.length?ms:fam[k];let x=0,y=0;base.forEach(m=>{x+=m.x;y+=m.y;});anc[k]={x:x/base.length,y:y/base.length};}
-  for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){const p=nodes[i],q=nodes[j];let dx=p.x-q.x,dy=p.y-q.y;let d2=dx*dx+dy*dy||1;let w=FX.CH*a/d2;p.vx+=dx*w;p.vy+=dy*w;q.vx-=dx*w;q.vy-=dy*w;}
-  edges.forEach(e=>{const p=idToNode[e.from],q=idToNode[e.to];if(!p||!q)return;let dx=q.x-p.x,dy=q.y-p.y;let d=Math.hypot(dx,dy)||1;let f=(d-FX.LNK)/d*FX.LK*a;p.vx+=dx*f;p.vy+=dy*f;q.vx-=dx*f;q.vy-=dy*f;});
-  nodes.forEach(n=>{const c=anc[n._hk];n.vx+=(c.x-n.x)*FX.COH*a;n.vy+=(c.y-n.y)*FX.COH*a;});
-  const hs=Object.keys(anc);for(let i=0;i<hs.length;i++)for(let j=i+1;j<hs.length;j++){const Aa=anc[hs[i]],Bb=anc[hs[j]];let dx=Aa.x-Bb.x,dy=Aa.y-Bb.y;let d=Math.hypot(dx,dy)||1;let w=FX.HUB*a/d;fam[hs[i]].forEach(n=>{n.vx+=dx/d*w;n.vy+=dy/d*w;});fam[hs[j]].forEach(n=>{n.vx-=dx/d*w;n.vy-=dy/d*w;});}
+  const g=GDATA;if(!g)return;const {nodes,edges,idToNode}=g;const N=nodes.length;if(!N)return;const a=SIM.alpha;const MIN=30,VD=0.6;
+  // Repel force (many-body)
+  for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){const p=nodes[i],q=nodes[j];let dx=p.x-q.x,dy=p.y-q.y;let d2=dx*dx+dy*dy||1;let w=FX.REP*a/d2;p.vx+=dx*w;p.vy+=dy*w;q.vx-=dx*w;q.vy-=dy*w;}
+  // Link force (spring to link distance)
+  edges.forEach(e=>{const p=idToNode[e.from],q=idToNode[e.to];if(!p||!q)return;let dx=q.x-p.x,dy=q.y-p.y;let d=Math.hypot(dx,dy)||1;let f=(d-FX.DIST)/d*FX.LINK*a;p.vx+=dx*f;p.vy+=dy*f;q.vx-=dx*f;q.vy-=dy*f;});
+  // Centre force (pull to middle; bounds the graph)
   nodes.forEach(n=>{if(n===GDRAG)return;n.vx+=(GW/2-n.x)*FX.CEN*a;n.vy+=(GH/2-n.y)*FX.CEN*a;});
-  nodes.forEach(n=>{if(n===GDRAG){n.vx=0;n.vy=0;return;}n.vx*=FX.VD;n.vy*=FX.VD;n.x+=n.vx;n.y+=n.vy;});
-  let mx=0,my=0;nodes.forEach(n=>{mx+=n.x;my+=n.y;});mx/=N;my/=N;nodes.forEach(n=>{if(n===GDRAG)return;n.x+=(GW/2-mx)*FX.RC;n.y+=(GH/2-my)*FX.RC;});
+  // integrate (velocity Verlet with damping)
+  nodes.forEach(n=>{if(n===GDRAG){n.vx=0;n.vy=0;return;}n.vx*=VD;n.vy*=VD;n.x+=n.vx;n.y+=n.vy;});
+  // collision -> keine Ueberlappung (2 Iterationen)
+  for(let it=0;it<2;it++)for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){const p=nodes[i],q=nodes[j];let dx=q.x-p.x,dy=q.y-p.y;let d=Math.hypot(dx,dy)||.01;if(d<MIN){const o=(MIN-d)/d,ox=dx*o,oy=dy*o;if(p===GDRAG){q.x+=ox;q.y+=oy;}else if(q===GDRAG){p.x-=ox;p.y-=oy;}else{p.x-=ox*0.5;p.y-=oy*0.5;q.x+=ox*0.5;q.y+=oy*0.5;}}}
   SIM.alpha+=(SIM.alphaTarget-SIM.alpha)*SIM.alphaDecay;
 }
 function updateDOM(){
@@ -595,13 +593,12 @@ $('#gFull').onclick=()=>{const p=$('#graphPanel');const on=p.classList.toggle('f
 $('#gBurger').onclick=()=>{const hidden=$('#gForces').classList.toggle('collapsed');state.gforcesOpen=!hidden;save();$('#gBurger').classList.toggle('on',!hidden);};
 window.addEventListener('keydown',e=>{if(e.key==='Escape'){const p=$('#graphPanel');if(p.classList.contains('fullscreen')){p.classList.remove('fullscreen');$('#gFull').classList.remove('on');setTimeout(fitView,60);}}});
 window.addEventListener('resize',()=>{if(GDATA&&graphVisible()){matchAspect(GVB);applyVB();cancelZoom();}});
-function updFxOut(){$('#fxCHv').textContent=FX.CH;$('#fxLKv').textContent=FX.LK.toFixed(2);$('#fxLNKv').textContent=FX.LNK;$('#fxCOHv').textContent=FX.COH.toFixed(2);$('#fxHUBv').textContent=FX.HUB;$('#fxCENv').textContent=FX.CEN.toFixed(3);$('#fxDAMPv').textContent=Math.round((1-FX.VD)*100)+'%';}
-function initForces(){if(state.gfx)Object.assign(FX,state.gfx);const S=(id,v)=>{const e=$(id);if(e)e.value=v;};S('#fxCH',FX.CH);S('#fxLK',FX.LK);S('#fxLNK',FX.LNK);S('#fxCOH',FX.COH);S('#fxHUB',FX.HUB);S('#fxCEN',FX.CEN);S('#fxDAMP',Math.round((1-FX.VD)*100));updFxOut();const _op=!!state.gforcesOpen;$('#gForces').classList.toggle('collapsed',!_op);const _b=$('#gBurger');if(_b)_b.classList.toggle('on',_op);}
-function bindFx(id,key){const e=$(id);if(!e)return;e.addEventListener('input',ev=>{FX[key]=Number(ev.target.value);state.gfx=Object.assign({},FX);save();updFxOut();reheat(0.4);});}
-bindFx('#fxCH','CH');bindFx('#fxLK','LK');bindFx('#fxLNK','LNK');bindFx('#fxCOH','COH');bindFx('#fxHUB','HUB');bindFx('#fxCEN','CEN');
-(function(){const e=$('#fxDAMP');if(e)e.addEventListener('input',ev=>{FX.VD=1-Number(ev.target.value)/100;state.gfx=Object.assign({},FX);save();updFxOut();reheat(0.4);});})();
-$('#gForceReset').onclick=()=>{FX=Object.assign({},state.gbase||FDEF);state.gfx=Object.assign({},FX);save();initForces();reheat(0.5);};
-$('#gSetDefault').onclick=()=>{state.gbase=Object.assign({},FX);save();const m=$('#gForceMsg');if(m){m.textContent='Als Standard gespeichert ✓';setTimeout(()=>m.textContent='',1600);}};
+function updFxOut(){$('#fxCENv').textContent=FX.CEN.toFixed(3);$('#fxREPv').textContent=FX.REP;$('#fxLINKv').textContent=FX.LINK.toFixed(2);$('#fxDISTv').textContent=FX.DIST;}
+function initForces(){if(state.gforce)Object.assign(FX,state.gforce);const S=(id,v)=>{const e=$(id);if(e)e.value=v;};S('#fxCEN',FX.CEN);S('#fxREP',FX.REP);S('#fxLINK',FX.LINK);S('#fxDIST',FX.DIST);updFxOut();const _op=!!state.gforcesOpen;$('#gForces').classList.toggle('collapsed',!_op);const _b=$('#gBurger');if(_b)_b.classList.toggle('on',_op);}
+function bindFx(id,key){const e=$(id);if(!e)return;e.addEventListener('input',ev=>{FX[key]=Number(ev.target.value);state.gforce=Object.assign({},FX);save();updFxOut();reheat(0.4);});}
+bindFx('#fxCEN','CEN');bindFx('#fxREP','REP');bindFx('#fxLINK','LINK');bindFx('#fxDIST','DIST');
+$('#gForceReset').onclick=()=>{FX=Object.assign({},state.gforceBase||FDEF);state.gforce=Object.assign({},FX);save();initForces();reheat(0.5);};
+$('#gSetDefault').onclick=()=>{state.gforceBase=Object.assign({},FX);save();const m=$('#gForceMsg');if(m){m.textContent='Als Standard gespeichert ✓';setTimeout(()=>m.textContent='',1600);}};
 
 // ---------- toolbar / panels ----------
 $('#q').oninput=render;$('#ctx').onchange=render;

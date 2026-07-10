@@ -346,13 +346,15 @@ async function refresh(){const t=tok();if(!t||!t.refresh_token)return false;
   try{const r=await fetch('https://accounts.spotify.com/api/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});const j=await r.json();if(j.access_token){storeTok(j);return true;}}catch(e){}return false;}
 async function ensureTok(){const t=tok();if(!t)return false;if(Date.now()>t.expires_at-30000)return await refresh();return true;}
 async function api(url,opt={}){if(!await ensureTok()){spMsg('Nicht verbunden.');return null;}const t=tok();const r=await fetch(url,{...opt,headers:{...(opt.headers||{}),Authorization:'Bearer '+t.access_token}});if(r.status===401){if(await refresh())return api(url,opt);}return r;}
+async function errMsg(r){try{const j=await r.json();return (j&&j.error&&j.error.message)?(': '+j.error.message):'';}catch(e){return '';}}
+function hint403(r){return (r&&r.status===403)?' — Dein Spotify-Konto muss in der App unter „User Management“ eingetragen sein, dann neu verbinden.':'';}
 async function spLoad(){
   if(!tok()){spMsg('Erst verbinden.');return;}
   const pid=state.cfg.playlistId.trim();if(!pid){spMsg('Playlist-ID fehlt.');return;}
   spMsg('Lade Playlist…');
   let url='https://api.spotify.com/v1/playlists/'+pid+'/tracks?limit=100&fields='+encodeURIComponent('items(track(id,name,artists(name),duration_ms,explicit)),next');
   let out=[],guard=0;
-  while(url&&guard++<30){const r=await api(url);if(!r||!r.ok){spMsg('Fehler beim Laden ('+(r?r.status:'?')+').');return;}const j=await r.json();(j.items||[]).forEach(it=>{const tr=it.track;if(!tr||!tr.id)return;out.push({id:tr.id,title:tr.name,artist:(tr.artists||[]).map(a=>a.name).join(', '),dur:ms(tr.duration_ms||0),explicit:!!tr.explicit});});url=j.next;}
+  while(url&&guard++<30){const r=await api(url);if(!r||!r.ok){spMsg('Fehler beim Laden ('+(r?r.status:'?')+')'+await errMsg(r)+hint403(r));return;}const j=await r.json();(j.items||[]).forEach(it=>{const tr=it.track;if(!tr||!tr.id)return;out.push({id:tr.id,title:tr.name,artist:(tr.artists||[]).map(a=>a.name).join(', '),dur:ms(tr.duration_ms||0),explicit:!!tr.explicit});});url=j.next;}
   out.forEach((t,i)=>t.pos=i+1);tracks=out;localStorage.setItem(CACHEKEY,JSON.stringify(tracks));
   $('#srcNote').textContent='live aus Spotify geladen';spMsg('Geladen: '+tracks.length+' Titel ✓');selId=null;render();
 }
@@ -363,9 +365,9 @@ async function spSave(){
   if(!confirm('Die Playlist wird mit der aktuellen Reihenfolge ('+uris.length+' Titel) überschrieben.\n\nTipp: vorher unter „Export → JSON/CSV“ ein Backup ziehen.\n\nFortfahren?'))return;
   const pid=state.cfg.playlistId.trim();spMsg('Speichere… (Schritt 1)');
   let r=await api('https://api.spotify.com/v1/playlists/'+pid+'/tracks',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({uris:uris.slice(0,100)})});
-  if(!r||!r.ok){spMsg('Fehler beim Schreiben ('+(r?r.status:'?')+'). Bist du Besitzer der Playlist? Sind die modify-Rechte erteilt?');return;}
+  if(!r||!r.ok){spMsg('Fehler beim Schreiben ('+(r?r.status:'?')+')'+await errMsg(r)+hint403(r)+' Bist du Besitzer der Playlist?');return;}
   let step=1;
-  for(let i=100;i<uris.length;i+=100){step++;spMsg('Speichere… (Schritt '+step+')');r=await api('https://api.spotify.com/v1/playlists/'+pid+'/tracks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uris:uris.slice(i,i+100)})});if(!r||!r.ok){spMsg('Fehler bei Batch ab Position '+i+' ('+(r?r.status:'?')+').');return;}}
+  for(let i=100;i<uris.length;i+=100){step++;spMsg('Speichere… (Schritt '+step+')');r=await api('https://api.spotify.com/v1/playlists/'+pid+'/tracks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uris:uris.slice(i,i+100)})});if(!r||!r.ok){spMsg('Fehler bei Batch ab Position '+i+' ('+(r?r.status:'?')+')'+await errMsg(r)+hint403(r));return;}}
   spMsg('Gespeichert ✓ – die Reihenfolge steht jetzt so in Spotify.');
 }
 function spLogout(){localStorage.removeItem(TOKKEY);spMsg('Getrennt.');updSpotifyUI();}

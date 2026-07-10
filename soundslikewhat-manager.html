@@ -136,6 +136,7 @@
     <button id="spConnect" class="primary">Mit Spotify verbinden</button>
     <button id="spLoad">Playlist laden ⤓</button>
     <button id="spSave">Reihenfolge speichern ⤒</button>
+    <button id="spWho">Konto prüfen</button>
     <button id="spLogout">Trennen</button>
   </div>
   <div id="spMsg" class="mini"></div>
@@ -183,7 +184,7 @@ const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const list=$('#list');
 const LSKEY='slw_state_v2',CACHEKEY='slw_playlist_cache_v1',TOKKEY='slw_spotify_tok',PKCEKEY='slw_pkce';
 const DEFAULT_PLAYLIST='2zHRF72BdAwFcdethu1EcE';
-const SCOPES='playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private';
+const SCOPES='playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private user-read-email';
 const REDIRECT=location.origin+location.pathname;
 const PALETTE=['#e6552f','#3f8ad1','#8e5cd1','#2fa96b','#d1a02f','#c94f86','#4fb0c9','#b0673f','#7d8a2e','#c05fb0'];
 
@@ -328,7 +329,7 @@ async function spConnect(){
   if(!(window.crypto&&crypto.subtle)){spMsg('Kryptografie nicht verfügbar – Seite muss über https/127.0.0.1 laufen.');return;}
   const verifier=randStr(48);const challenge=b64url(await sha256(verifier));
   localStorage.setItem(PKCEKEY,verifier);
-  const p=new URLSearchParams({client_id:cid,response_type:'code',redirect_uri:REDIRECT,scope:SCOPES,code_challenge_method:'S256',code_challenge:challenge});
+  const p=new URLSearchParams({client_id:cid,response_type:'code',redirect_uri:REDIRECT,scope:SCOPES,code_challenge_method:'S256',code_challenge:challenge,show_dialog:'true'});
   location.href='https://accounts.spotify.com/authorize?'+p.toString();
 }
 async function handleRedirect(){
@@ -371,6 +372,7 @@ async function spSave(){
   spMsg('Gespeichert ✓ – die Reihenfolge steht jetzt so in Spotify.');
 }
 function spLogout(){localStorage.removeItem(TOKKEY);spMsg('Getrennt.');updSpotifyUI();}
+async function spWho(){if(!tok()){spMsg('Erst verbinden.');return;}const r=await api('https://api.spotify.com/v1/me');if(!r||!r.ok){spMsg('Konto-Abfrage fehlgeschlagen ('+(r?r.status:'?')+')'+await errMsg(r)+hint403(r));return;}const j=await r.json();spMsg('Verbunden als: '+(j.display_name||'—')+'  ·  '+(j.email||'(keine E-Mail-Freigabe)')+'  ·  id: '+j.id+'  ·  '+(j.product||''));}
 function updSpotifyUI(){
   $('#spRedirect').textContent=REDIRECT;
   $('#spClient').value=state.cfg.clientId||'';
@@ -383,7 +385,7 @@ function updSpotifyUI(){
 }
 $('#spClient').oninput=e=>{state.cfg.clientId=e.target.value;save();updSpotifyUI();};
 $('#spPlaylist').oninput=e=>{state.cfg.playlistId=e.target.value;save();};
-$('#spConnect').onclick=spConnect;$('#spLoad').onclick=spLoad;$('#spSave').onclick=spSave;$('#spLogout').onclick=spLogout;
+$('#spConnect').onclick=spConnect;$('#spLoad').onclick=spLoad;$('#spSave').onclick=spSave;$('#spWho').onclick=spWho;$('#spLogout').onclick=spLogout;
 $('#spCopyRedir').onclick=()=>{navigator.clipboard.writeText(REDIRECT);$('#spCopyRedir').textContent='kopiert ✓';setTimeout(()=>$('#spCopyRedir').textContent='kopieren',1200);};
 
 // ---------- toolbar / panels ----------

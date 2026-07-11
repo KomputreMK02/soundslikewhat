@@ -466,7 +466,9 @@ $('#modal').onclick=e=>{if(e.target.id==='modal')closeModal();};
 
 // ================= SPOTIFY (PKCE) =================
 function tok(){try{return JSON.parse(localStorage.getItem(TOKKEY));}catch(e){return null;}}
-function storeTok(j){const t=tok()||{};const n={access_token:j.access_token,refresh_token:j.refresh_token||t.refresh_token,expires_at:Date.now()+(j.expires_in||3600)*1000};localStorage.setItem(TOKKEY,JSON.stringify(n));}
+function hasScopes(){const t=tok();if(!t||!t.scope)return false;return ['playlist-read-private','playlist-modify-public','playlist-modify-private'].every(x=>t.scope.indexOf(x)>=0);}
+function scopeGuard(){if(tok()&&!hasScopes()){spMsg('Deine Spotify-Verbindung hat nicht die noetigen Berechtigungen (vermutlich ein alter Login von vor der Rechte-Erweiterung). Bitte „Trennen“ klicken und neu verbinden – im Spotify-Dialog die Rechte bestätigen.');return false;}return true;}
+function storeTok(j){const t=tok()||{};const n={access_token:j.access_token,refresh_token:j.refresh_token||t.refresh_token,scope:(j.scope!==undefined?j.scope:t.scope)||'',expires_at:Date.now()+(j.expires_in||3600)*1000};localStorage.setItem(TOKKEY,JSON.stringify(n));}
 function b64url(buf){return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
 async function sha256(s){return await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));}
 function randStr(n){const a=new Uint8Array(n);crypto.getRandomValues(a);return[...a].map(x=>('0'+x.toString(16)).slice(-2)).join('');}
@@ -499,6 +501,7 @@ async function errMsg(r){try{const j=await r.json();return (j&&j.error&&j.error.
 function hint403(r){return (r&&r.status===403)?' — Dein Spotify-Konto muss in der App unter „User Management“ eingetragen sein, dann neu verbinden.':'';}
 async function spLoad(){
   if(!tok()){spMsg('Erst verbinden.');return;}
+  if(!scopeGuard())return;
   const pid=state.cfg.playlistId.trim();if(!pid){spMsg('Playlist-ID fehlt.');return;}
   spMsg('Lade Playlist…');
   let url='https://api.spotify.com/v1/playlists/'+pid+'/tracks?limit=100&fields='+encodeURIComponent('items(track(id,name,artists(name),duration_ms,explicit)),next');
@@ -509,6 +512,7 @@ async function spLoad(){
 }
 async function spSave(){
   if(!tok()){spMsg('Erst verbinden.');return;}
+  if(!scopeGuard())return;
   const uris=tracks.filter(t=>t.id).map(t=>'spotify:track:'+t.id);
   if(!uris.length){spMsg('Keine Titel zum Speichern.');return;}
   if(!confirm('Die Playlist wird mit der aktuellen Reihenfolge ('+uris.length+' Titel) überschrieben.\n\nTipp: vorher unter „Export → JSON/CSV“ ein Backup ziehen.\n\nFortfahren?'))return;
@@ -520,7 +524,7 @@ async function spSave(){
   spMsg('Gespeichert ✓ – die Reihenfolge steht jetzt so in Spotify.');
 }
 function spLogout(){localStorage.removeItem(TOKKEY);spMsg('Getrennt.');updSpotifyUI();}
-async function spWho(){if(!tok()){spMsg('Erst verbinden.');return;}const r=await api('https://api.spotify.com/v1/me');if(!r||!r.ok){spMsg('Konto-Abfrage fehlgeschlagen ('+(r?r.status:'?')+')'+await errMsg(r)+hint403(r));return;}const j=await r.json();spMsg('Verbunden als: '+(j.display_name||'—')+'  ·  '+(j.email||'(keine E-Mail-Freigabe)')+'  ·  id: '+j.id+'  ·  '+(j.product||''));}
+async function spWho(){if(!tok()){spMsg('Erst verbinden.');return;}const r=await api('https://api.spotify.com/v1/me');if(!r||!r.ok){spMsg('Konto-Abfrage fehlgeschlagen ('+(r?r.status:'?')+')'+await errMsg(r)+hint403(r));return;}const j=await r.json();spMsg('Verbunden als: '+(j.display_name||'—')+'  ·  '+(j.email||'(keine E-Mail-Freigabe)')+'  ·  '+(j.product||'')+'  ·  Rechte '+(hasScopes()?'OK ✓':'UNVOLLSTÄNDIG – neu verbinden!'));}
 function updSpotifyUI(){
   $('#spRedirect').textContent=REDIRECT;
   $('#spClient').value=state.cfg.clientId||'';
@@ -576,7 +580,7 @@ function buildGraph2D(keep){
   svg.innerHTML='';
   const defs=svgEl('defs');const mk=svgEl('marker',{id:'arrow',viewBox:'0 0 10 10',refX:'8',refY:'5',markerWidth:'6',markerHeight:'6',orient:'auto-start-reverse'});mk.appendChild(svgEl('path',{d:'M0 0 L10 5 L0 10 z',fill:'context-stroke'}));defs.appendChild(mk);svg.appendChild(defs);
   const gE=svgEl('g');svg.appendChild(gE);const gN=svgEl('g');svg.appendChild(gN);
-  g.edges.forEach(e=>{const grp=svgEl('g',{class:'gedge'});grp.dataset.from=e.from;grp.dataset.to=e.to;e.hit=svgEl('line',{class:'gedge-hit'});grp.appendChild(e.hit);e.line=svgEl('line',{stroke:e.color,'stroke-width':'1.9','marker-end':'url(#arrow)',opacity:'0.55','stroke-linecap':'round','vector-effect':'non-scaling-stroke'});grp.appendChild(e.line);e.grp=grp;gE.appendChild(grp);});
+  g.edges.forEach(e=>{const grp=svgEl('g',{class:'gedge'});grp.dataset.from=e.from;grp.dataset.to=e.to;e.hit=svgEl('line',{class:'gedge-hit'});grp.appendChild(e.hit);e.line=svgEl('line',{stroke:e.color,'stroke-width':'2.4','marker-end':'url(#arrow)',opacity:'0.85','stroke-linecap':'round','vector-effect':'non-scaling-stroke'});grp.appendChild(e.line);e.grp=grp;gE.appendChild(grp);});
   g.nodes.forEach(n=>{
     const pv=GPOS[n.id];n.x=pv?pv.x:GW/2+(Math.random()-.5)*380;n.y=pv?pv.y:GH/2+(Math.random()-.5)*380;n.vx=0;n.vy=0;
     const grp=svgEl('g',{class:'gnode'});grp.dataset.id=n.id;
@@ -615,7 +619,7 @@ function applyHighlight(){
   const selFam=GSEL&&idToNode[GSEL]?idToNode[GSEL].fam:undefined;
   const neigh=new Set();if(GSEL){neigh.add(GSEL);edges.forEach(e=>{if(e.from===GSEL)neigh.add(e.to);if(e.to===GSEL)neigh.add(e.from);});}
   nodes.forEach(n=>{let dim=GSEL&&(selFam!=null?n.fam!==selFam:!neigh.has(n.id));n.g.setAttribute('opacity',dim?0.18:1);});
-  edges.forEach(e=>{const a=idToNode[e.from],b=idToNode[e.to];let dim=GSEL&&(selFam!=null?!(a&&b&&a.fam===selFam&&b.fam===selFam):!(e.from===GSEL||e.to===GSEL));e.line.setAttribute('stroke',dim?'#2a2a2d':e.color);e.line.setAttribute('opacity',dim?0.22:0.5);e.line.setAttribute('stroke-width',dim?1:1.9);});
+  edges.forEach(e=>{const a=idToNode[e.from],b=idToNode[e.to];let dim=GSEL&&(selFam!=null?!(a&&b&&a.fam===selFam&&b.fam===selFam):!(e.from===GSEL||e.to===GSEL));e.line.setAttribute('stroke',dim?'#2a2a2d':e.color);e.line.setAttribute('opacity',dim?0.22:0.5);e.line.setAttribute('stroke-width',dim?1.2:2.4);});
 }
 function startLoop(){if(GRAF)return;const loop=()=>{if(!graphVisible()){GRAF=null;return;}const active=SIM.alpha>SIM.alphaMin||GDRAG;if(active)step();updateDOM();if(active){GRAF=requestAnimationFrame(loop);}else{GRAF=null;}};GRAF=requestAnimationFrame(loop);}
 function reheat(v){SIM.alpha=Math.max(SIM.alpha,v);if(is3D()){if(typeof startLoop3==='function')startLoop3();}else{startLoop();}}
@@ -743,7 +747,7 @@ function proj3(n){const ca=Math.cos(cam.az),sa=Math.sin(cam.az),ce=Math.cos(cam.
   return {sx:W3W/2+x*sc,sy:W3H/2-y*sc,sc,zc};}
 const SCRAMBLE='アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホミムメモヤユヨラリルレロ0123456789#%&*<>=+/¥ΞΔ';
 function decodeText(text,start,now,offset){const el=now-start-(offset||0);const step=14,base=30;let out='';for(let i=0;i<text.length;i++){const ch=text[i];if(ch===' '){out+=' ';continue;}if(el>=base+i*step){out+=ch;}else if(el<0){out+=' ';}else{out+=SCRAMBLE.charAt((Math.random()*SCRAMBLE.length)|0);}}return out;}
-function drawSphere(){const ctx=ctx3;if(!G3)return;const R=cam.dist*1.7;ctx.globalCompositeOperation='lighter';ctx.shadowBlur=0;
+function drawSphere(){const ctx=ctx3;if(!G3)return;const R=cam.dist*1.7;ctx.shadowBlur=0;
   if(!STARS){STARS=[];for(let i=0;i<150;i++){const u=Math.random()*2-1,th=Math.random()*6.2832,rr=Math.sqrt(1-u*u);STARS.push({x:rr*Math.cos(th),y:u,z:rr*Math.sin(th),b:0.3+Math.random()*0.7});}}
   const SR=cam.dist*1.5;ctx.fillStyle='#8fe9d8';STARS.forEach(sT=>{const p=proj3({x:sT.x*SR,y:sT.y*SR,z:sT.z*SR});if(p.zc<=1)return;ctx.globalAlpha=sT.b*0.55;ctx.beginPath();ctx.arc(p.sx,p.sy,sT.b*1.6,0,6.2832);ctx.fill();});
   ctx.strokeStyle='#1fbfa0';ctx.globalAlpha=0.13;ctx.lineWidth=1.0;const seg=48;
@@ -755,9 +759,8 @@ function render3(){if(!ctx3||!G3)return;const ctx=ctx3;ctx.clearRect(0,0,W3W,W3H
   const selFam=sel3&&idToNode[sel3]?idToNode[sel3].fam:undefined;
   const neigh=new Set();if(sel3){neigh.add(sel3);edges.forEach(e=>{if(e.from===sel3)neigh.add(e.to);if(e.to===sel3)neigh.add(e.from);});}
   nodes.forEach(n=>{n._p=proj3(n);GPOS3[n.id]={x:n.x,y:n.y,z:n.z};});
-  ctx.globalCompositeOperation='lighter';
   const es=edges.filter(e=>idToNode[e.from]&&idToNode[e.to]).slice().sort((a,b)=>(idToNode[b.from]._p.zc+idToNode[b.to]._p.zc)-(idToNode[a.from]._p.zc+idToNode[a.to]._p.zc));
-  es.forEach(e=>{const a=idToNode[e.from]._p,b=idToNode[e.to]._p;if(a.zc<=1||b.zc<=1)return;let dim=sel3&&(selFam!=null?!(idToNode[e.from].fam===selFam&&idToNode[e.to].fam===selFam):!(e.from===sel3||e.to===sel3));ctx.strokeStyle=e.color;ctx.globalAlpha=dim?0.1:0.62;ctx.lineWidth=dim?0.8:2;ctx.shadowColor=e.color;ctx.shadowBlur=dim?0:7;ctx.beginPath();ctx.moveTo(a.sx,a.sy);ctx.lineTo(b.sx,b.sy);ctx.stroke();});
+  es.forEach(e=>{const a=idToNode[e.from]._p,b=idToNode[e.to]._p;if(a.zc<=1||b.zc<=1)return;let dim=sel3&&(selFam!=null?!(idToNode[e.from].fam===selFam&&idToNode[e.to].fam===selFam):!(e.from===sel3||e.to===sel3));ctx.strokeStyle=e.color;ctx.globalAlpha=dim?0.18:0.92;ctx.lineWidth=dim?0.9:2.4;ctx.shadowColor=e.color;ctx.shadowBlur=dim?0:5;ctx.beginPath();ctx.moveTo(a.sx,a.sy);ctx.lineTo(b.sx,b.sy);ctx.stroke();});
   const ns=nodes.slice().sort((a,b)=>b._p.zc-a._p.zc);
   ns.forEach(n=>{const p=n._p;if(p.zc<=1)return;let dim=sel3&&(selFam!=null?n.fam!==selFam:!neigh.has(n.id));const r=Math.max(1.6,(n.src?11:(n.smp?4.5:6))*p.sc*0.55);const col=n.orphan?'#4a4a52':n.color;ctx.globalAlpha=dim?0.14:(n.src?1:0.6);ctx.shadowColor=col;ctx.shadowBlur=dim?0:Math.min(22,r*1.5+5);ctx.fillStyle=col;ctx.beginPath();ctx.arc(p.sx,p.sy,r,0,6.2832);ctx.fill();
     if(n.id===pend3){ctx.globalAlpha=1;ctx.shadowBlur=0;ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.sx,p.sy,r+3,0,6.2832);ctx.stroke();}});

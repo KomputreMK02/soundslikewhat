@@ -504,9 +504,9 @@ async function spLoad(){
   if(!scopeGuard())return;
   const pid=state.cfg.playlistId.trim();if(!pid){spMsg('Playlist-ID fehlt.');return;}
   spMsg('Lade Playlist…');
-  let url='https://api.spotify.com/v1/playlists/'+pid+'/tracks?limit=100&fields='+encodeURIComponent('items(track(id,name,artists(name),duration_ms,explicit)),next');
+  let url='https://api.spotify.com/v1/playlists/'+pid+'/items?limit=100&fields='+encodeURIComponent('items(item(id,name,artists(name),duration_ms,explicit)),next');
   let out=[],guard=0;
-  while(url&&guard++<30){const r=await api(url);if(!r||!r.ok){spMsg('Fehler beim Laden ('+(r?r.status:'?')+')'+await errMsg(r)+hint403(r));return;}const j=await r.json();(j.items||[]).forEach(it=>{const tr=it.track;if(!tr||!tr.id)return;out.push({id:tr.id,title:tr.name,artist:(tr.artists||[]).map(a=>a.name).join(', '),dur:ms(tr.duration_ms||0),explicit:!!tr.explicit});});url=j.next;}
+  while(url&&guard++<30){const r=await api(url);if(!r||!r.ok){spMsg('Fehler beim Laden ('+(r?r.status:'?')+')'+await errMsg(r)+hint403(r));return;}const j=await r.json();(j.items||[]).forEach(it=>{const tr=it.item||it.track;if(!tr||!tr.id)return;out.push({id:tr.id,title:tr.name,artist:(tr.artists||[]).map(a=>a.name).join(', '),dur:ms(tr.duration_ms||0),explicit:!!tr.explicit});});url=j.next;}
   out.forEach((t,i)=>t.pos=i+1);tracks=out;localStorage.setItem(CACHEKEY,JSON.stringify(tracks));
   $('#srcNote').textContent='live aus Spotify geladen';spMsg('Geladen: '+tracks.length+' Titel ✓');selId=null;render();
 }
@@ -517,10 +517,10 @@ async function spSave(){
   if(!uris.length){spMsg('Keine Titel zum Speichern.');return;}
   if(!confirm('Die Playlist wird mit der aktuellen Reihenfolge ('+uris.length+' Titel) überschrieben.\n\nTipp: vorher unter „Export → JSON/CSV“ ein Backup ziehen.\n\nFortfahren?'))return;
   const pid=state.cfg.playlistId.trim();spMsg('Speichere… (Schritt 1)');
-  let r=await api('https://api.spotify.com/v1/playlists/'+pid+'/tracks',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({uris:uris.slice(0,100)})});
-  if(!r||!r.ok){spMsg('Fehler beim Schreiben ('+(r?r.status:'?')+')'+await errMsg(r)+hint403(r)+' Bist du Besitzer der Playlist?');return;}
+  let r=await api('https://api.spotify.com/v1/playlists/'+pid+'/items',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({uris:uris.slice(0,100)})});
+  if(!r||!r.ok){spMsg('Fehler beim Schreiben ('+(r?r.status:'?')+')'+await errMsg(r)+(r&&r.status===403?' — Spotify erlaubt seit Feb 2026 KEIN Zurückschreiben für persönliche Development-Mode-Apps (nur Lesen). Wende die Reihenfolge über „Export → Track-URIs“ manuell an.':'')+'');return;}
   let step=1;
-  for(let i=100;i<uris.length;i+=100){step++;spMsg('Speichere… (Schritt '+step+')');r=await api('https://api.spotify.com/v1/playlists/'+pid+'/tracks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uris:uris.slice(i,i+100)})});if(!r||!r.ok){spMsg('Fehler bei Batch ab Position '+i+' ('+(r?r.status:'?')+')'+await errMsg(r)+hint403(r));return;}}
+  for(let i=100;i<uris.length;i+=100){step++;spMsg('Speichere… (Schritt '+step+')');r=await api('https://api.spotify.com/v1/playlists/'+pid+'/items',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uris:uris.slice(i,i+100)})});if(!r||!r.ok){spMsg('Fehler bei Batch ab Position '+i+' ('+(r?r.status:'?')+')'+await errMsg(r)+hint403(r));return;}}
   spMsg('Gespeichert ✓ – die Reihenfolge steht jetzt so in Spotify.');
 }
 function spLogout(){localStorage.removeItem(TOKKEY);spMsg('Getrennt.');updSpotifyUI();}

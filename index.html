@@ -762,7 +762,12 @@ $('#gAutoLinks').onclick=()=>{if(confirm('Verbindungen neu aus den Familien erze
 $('#gZoomIn').onclick=()=>{if(is3D()){cam.distT=Math.max(140,cam.distT*0.8);return;}cancelZoom();GVB.x+=GVB.w*0.1;GVB.y+=GVB.h*0.1;GVB.w*=0.8;GVB.h*=0.8;applyVB();};
 $('#gZoomOut').onclick=()=>{if(is3D()){cam.distT=Math.min(5000,cam.distT*1.25);return;}cancelZoom();GVB.x-=GVB.w*0.125;GVB.y-=GVB.h*0.125;GVB.w*=1.25;GVB.h*=1.25;applyVB();};
 $('#gReset').onclick=()=>{if(is3D()){sel3=null;focus3=null;cam.txT=0;cam.tyT=0;cam.tzT=0;fit3D();return;}GSEL=null;applyHighlight();fitView();};
-$('#gFull').onclick=()=>{const p=$('#graphPanel');const on=p.classList.toggle('fullscreen');$('#gFull').classList.toggle('on',on);setTimeout(()=>{if(graphVisible()){if(is3D()){resizeCanvas3();fit3D();}else{fitView();reheat(0.2);}}},60);};
+function graphResizeSoon(){setTimeout(()=>{if(graphVisible()){if(is3D()){resizeCanvas3();fit3D();}else{fitView();reheat(0.2);}}},90);}
+function setGraphFS(on){const p=$('#graphPanel');p.classList.toggle('fullscreen',on);$('#gFull').classList.toggle('on',on);graphResizeSoon();}
+$('#gFull').onclick=()=>{const p=$('#graphPanel');const goOn=!p.classList.contains('fullscreen');if(goOn){const rq=p.requestFullscreen||p.webkitRequestFullscreen||p.msRequestFullscreen;if(rq){try{const r=rq.call(p);if(r&&r.catch)r.catch(()=>{});}catch(e){}}setGraphFS(true);}else{const fe=document.fullscreenElement||document.webkitFullscreenElement;const ex=document.exitFullscreen||document.webkitExitFullscreen||document.msExitFullscreen;if(fe&&ex){try{ex.call(document);}catch(e){}}setGraphFS(false);}};
+function _fsChanged(){const fe=document.fullscreenElement||document.webkitFullscreenElement;const p=$('#graphPanel');if(!fe&&p.classList.contains('fullscreen'))setGraphFS(false);}
+document.addEventListener('fullscreenchange',_fsChanged);
+document.addEventListener('webkitfullscreenchange',_fsChanged);
 $('#gBurger').onclick=()=>{const hidden=$('#gForces').classList.toggle('collapsed');state.gforcesOpen=!hidden;save();$('#gBurger').classList.toggle('on',!hidden);};
 window.addEventListener('keydown',e=>{if(e.key==='Escape'){const p=$('#graphPanel');if(p.classList.contains('fullscreen')){p.classList.remove('fullscreen');$('#gFull').classList.remove('on');setTimeout(()=>{if(is3D()){resizeCanvas3();fit3D();}else fitView();},60);}}});
 window.addEventListener('resize',()=>{if(graphVisible()){if(is3D()){resizeCanvas3();}else if(GDATA){matchAspect(GVB);applyVB();cancelZoom();}}});

@@ -171,6 +171,7 @@
   #graphPanel.fullscreen .graph-wrap{flex:1 1 auto;min-height:0}
   #graphPanel.fullscreen #graphSvg,#graphPanel.fullscreen #graph3d,[data-theme="eva"] #graphPanel.fullscreen #graph3d,[data-theme="eva"] #graphPanel.fullscreen #graphSvg{height:100%}
   .row.dropinto{background:#12351f;box-shadow:inset 0 0 0 1px var(--green)}
+  .chip.rmfam{cursor:pointer}
 </style>
 </head>
 <body>
@@ -357,12 +358,18 @@ let state={families:[],ann:{},cfg:{clientId:'',playlistId:DEFAULT_PLAYLIST}};
 function load(){try{const s=JSON.parse(localStorage.getItem(LSKEY));if(s&&s.ann){state=Object.assign({families:[],ann:{},cfg:{}},s);state.families=state.families||[];state.ann=state.ann||{};state.cfg=Object.assign({clientId:'',playlistId:DEFAULT_PLAYLIST},s.cfg||{});}}catch(e){}}
 let saveTimer=null;
 function save(){state.ts=Date.now();localStorage.setItem(LSKEY,JSON.stringify(state));if(typeof scheduleBackup==='function')scheduleBackup();if(typeof gistSchedule==='function')gistSchedule();if(typeof histRecord==='function')histRecord();$('#saveState').textContent='gespeichert ✓';clearTimeout(saveTimer);saveTimer=setTimeout(()=>$('#saveState').textContent='',1200);}
-function ann(id){return state.ann[id] ??= {fam:null,src:false,smp:false};}
+function ann(id){let a=state.ann[id];if(!a){a=state.ann[id]={fams:[],src:false,smp:false};}if(!Array.isArray(a.fams))a.fams=(a.fam?[a.fam]:[]);if('fam' in a)delete a.fam;return a;}
 function famById(id){return state.families.find(f=>f.id===id);}
 function famColor(id){const f=famById(id);return f?f.color:null;}
+function famsOf(id){return ann(id).fams;}
+function primFam(id){const a=ann(id).fams;return a.length?a[0]:null;}
+function hasFam(id,fid){return ann(id).fams.indexOf(fid)>=0;}
+function addFam(id,fid){const a=ann(id);if(fid&&a.fams.indexOf(fid)<0)a.fams.push(fid);}
+function removeFam(id,fid){const a=ann(id);a.fams=a.fams.filter(x=>x!==fid);}
+function nodeColorOf(id){return famColor(primFam(id))||'#5a5a5f';}
 function nextColor(){return PALETTE[state.families.length%PALETTE.length];}
 function newFamily(name){const id='f'+Date.now()+Math.floor(Math.random()*999);state.families.push({id,name:name||('Familie '+(state.families.length+1)),color:nextColor()});return id;}
-function delFamily(id){state.families=state.families.filter(f=>f.id!==id);Object.values(state.ann).forEach(a=>{if(a.fam===id)a.fam=null;});}
+function delFamily(id){state.families=state.families.filter(f=>f.id!==id);Object.keys(state.ann).forEach(k=>removeFam(k,id));}
 
 // ---------- helpers ----------
 function norm(t){return t.toLowerCase().replace(/\(.*?\)/g,' ').split(' - ')[0].replace(/feat\.?.*/,' ').replace(/[^a-z0-9]+/g,'').trim();}
@@ -381,21 +388,21 @@ function render(){
   tracks.forEach((t,i)=>{if(q&&(t.title.toLowerCase().includes(q.toLowerCase())||t.artist.toLowerCase().includes(q.toLowerCase())))matchIdx.add(i);});
   const showCtx=$('#ctx').checked,ctxIdx=new Set();
   if(q&&showCtx)matchIdx.forEach(i=>[i-1,i+1].forEach(j=>{if(j>=0&&j<tracks.length)ctxIdx.add(j);}));
-  const famOpts=id=>{let o='<option value="">— Familie —</option>';state.families.forEach(f=>o+=`<option value="${f.id}"${ann(id).fam===f.id?' selected':''}>${esc(f.name)}</option>`);o+='<option value="__new">+ Neue Familie…</option>';return o;};
+  const famOpts=id=>{let o='<option value="">＋ Familie…</option>';state.families.forEach(f=>{if(!hasFam(id,f.id))o+='<option value="'+f.id+'">'+esc(f.name)+'</option>';});o+='<option value="__new">+ Neue Familie…</option>';return o;};
   list.innerHTML='';
   tracks.forEach((t,i)=>{
     const a=ann(t.id);let show=true;if(q)show=matchIdx.has(i)||ctxIdx.has(i);
     const row=document.createElement('div');row.className='row'+(sortMode?' drag':'');
     if(!show)row.className+=' hidden';
     if(q&&ctxIdx.has(i)&&!matchIdx.has(i))row.className+=' dim';
-    const col=famColor(a.fam);if(col)row.style.borderLeftColor=col;
+    const col=(a.fams&&a.fams.length)?nodeColorOf(t.id):null;if(col)row.style.borderLeftColor=col;
     row.dataset.i=i;row.dataset.id=t.id;if(sortMode||!editMode){row.setAttribute('draggable','true');}if(!sortMode&&!editMode)row.title='Auf einen anderen Song ziehen = in dessen Familie aufnehmen';
     let left='<div class="posw">';
     if(editMode)left+=`<input type="checkbox" class="cbx" data-id="${t.id}" ${batch.has(t.id)?'checked':''}>`;
     if(sortMode)left+='<span class="grip">⋮⋮</span>';
     left+=`<span class="pos">${i+1}</span></div>`;
     let chips='';
-    if(!editMode){if(a.fam){const f=famById(a.fam);if(f)chips+=`<span class="chip fam" style="background:${f.color}">${esc(f.name)}</span>`;}if(a.src)chips+='<span class="chip src">Original</span>';if(a.smp)chips+='<span class="chip smp">Sampler</span>';}
+    a.fams.forEach(fid=>{const f=famById(fid);if(f)chips+='<span class="chip fam'+(editMode?' rmfam':'')+'" '+(editMode?'data-rm="'+t.id+'" data-fid="'+fid+'" title="Klicken zum Entfernen"':'')+' style="background:'+f.color+'">'+esc(f.name)+(editMode?' ✕':'')+'</span>';});if(!editMode){if(a.src)chips+='<span class="chip src">Original</span>';if(a.smp)chips+='<span class="chip smp">Sampler</span>';}
     const mid=`<div><div class="title">${hl(t.title,q)}${t.explicit?'<span class="exp">E</span>':''}${chips}</div><div class="artist">${hl(t.artist,q)}</div></div>`;
     let right='<div class="right">';
     if(editMode){
@@ -411,8 +418,9 @@ function render(){
 function updStats(){$('#stCount').textContent=tracks.length;$('#stFamN').textContent=state.families.length;$('#stSrc').textContent=Object.values(state.ann).filter(a=>a.src).length;$('#stSmp').textContent=Object.values(state.ann).filter(a=>a.smp).length;$('#stDur').textContent=secToHms(tracks.reduce((s,t)=>s+durToSec(t.dur),0))+' gesamt';}
 function wire(){
   $$('#list .row').forEach(row=>{row.addEventListener('click',e=>{if(editMode||sortMode)return;if(e.target.closest('button,select,input'))return;const i=+row.dataset.i;selId=(selId===i?null:i);paintSel();if(selId!=null&&tracks[selId]&&typeof focusGraphOnTrack==='function')focusGraphOnTrack(tracks[selId].id);});if(sortMode)addDrag(row);else if(!editMode)addConnectDrag(row);});
-  $$('.rolebtn').forEach(b=>b.addEventListener('click',()=>{const a=ann(b.dataset.id);a[b.dataset.role]=!a[b.dataset.role];save();render();}));
-  $$('select.fam').forEach(s=>s.addEventListener('change',()=>{const id=s.dataset.id;if(s.value==='__new'){const nm=prompt('Name der neuen Familie:');if(nm){const fid=newFamily(nm);ann(id).fam=fid;}save();render();return;}ann(id).fam=s.value||null;save();render();}));
+  $$('.rolebtn').forEach(b=>b.addEventListener('click',()=>{const a=ann(b.dataset.id);a[b.dataset.role]=!a[b.dataset.role];save();refresh();}));
+  $$('select.fam').forEach(s=>s.addEventListener('change',()=>{const id=s.dataset.id;if(s.value==='__new'){const nm=prompt('Name der neuen Familie:');if(nm){const fid=newFamily(nm);addFam(id,fid);}save();refresh();return;}if(s.value)addFam(id,s.value);save();refresh();}));
+  $$('.rmfam').forEach(c=>c.addEventListener('click',ev=>{ev.stopPropagation();removeFam(c.dataset.rm,c.dataset.fid);save();refresh();}));
   $$('.cbx').forEach(c=>c.addEventListener('change',()=>{if(c.checked)batch.add(c.dataset.id);else batch.delete(c.dataset.id);updBatchbar();}));
 }
 function paintSel(){$$('#list .row').forEach(r=>r.classList.remove('sel','orig'));if(selId==null||editMode)return;const rows=$$('#list .row');const cur=rows.find(r=>+r.dataset.i===selId);if(cur){cur.classList.add('sel');const p=rows.find(r=>+r.dataset.i===selId-1);if(p)p.classList.add('orig');}}
@@ -434,39 +442,39 @@ function addDrag(row){
   row.addEventListener('drop',e=>{e.preventDefault();const from=+dragEl.dataset.i,to=+row.dataset.i;if(from===to)return;const[m]=tracks.splice(from,1);tracks.splice(from<to?to-1:to,0,m);try{localStorage.setItem(CACHEKEY,JSON.stringify(tracks));}catch(e){}if(typeof scheduleBackup==='function')scheduleBackup();render();});
 }
 // ---------- batch ops ----------
-$('#bNew').onclick=()=>{if(!batch.size)return;const nm=prompt('Name der neuen Familie:',suggestName());if(nm===null)return;const fid=newFamily(nm);batch.forEach(id=>ann(id).fam=fid);autoRoles(fid);save();render();};
-$('#bAdd').onclick=()=>{if(!batch.size)return;if(!state.families.length){alert('Noch keine Familie vorhanden.');return;}const nm=prompt('Zu welcher Familie?\n'+state.families.map(f=>'• '+f.name).join('\n'));const f=state.families.find(x=>x.name===nm);if(!f){alert('Keine Familie mit diesem Namen.');return;}batch.forEach(id=>ann(id).fam=f.id);save();render();};
-$('#bRemove').onclick=()=>{batch.forEach(id=>ann(id).fam=null);save();render();};
+$('#bNew').onclick=()=>{if(!batch.size)return;const nm=prompt('Name der neuen Familie:',suggestName());if(nm===null)return;const fid=newFamily(nm);batch.forEach(id=>addFam(id,fid));autoRoles(fid);save();refresh();};
+$('#bAdd').onclick=()=>{if(!batch.size)return;if(!state.families.length){alert('Noch keine Familie vorhanden.');return;}const nm=prompt('Zu welcher Familie?\n'+state.families.map(f=>'• '+f.name).join('\n'));const f=state.families.find(x=>x.name===nm);if(!f){alert('Keine Familie mit diesem Namen.');return;}batch.forEach(id=>addFam(id,f.id));save();refresh();};
+$('#bRemove').onclick=()=>{batch.forEach(id=>{ann(id).fams=[];});save();refresh();};
 $('#bClear').onclick=()=>{batch.clear();render();};
 function suggestName(){const ids=[...batch];const t=tracks.find(x=>ids.includes(x.id));return t?t.title.split(' - ')[0].replace(/\(.*?\)/,'').trim():'';}
-function autoRoles(fid){const mem=tracks.filter(t=>ann(t.id).fam===fid);if(mem.some(t=>ann(t.id).src||ann(t.id).smp))return;mem.forEach((t,i)=>{const a=ann(t.id);if(i===0)a.src=true;else a.smp=true;});}
+function autoRoles(fid){const mem=tracks.filter(t=>hasFam(t.id,fid));if(mem.some(t=>ann(t.id).src||ann(t.id).smp))return;mem.forEach((t,i)=>{const a=ann(t.id);if(i===0)a.src=true;else a.smp=true;});}
 // ---------- families panel ----------
 function buildFam(){
   const p=$('#famPanel');let h='<h3>Familien <span class="badgecount">'+state.families.length+'</span> <button class="primary" style="float:right" id="famAdd">＋ Neue Familie</button><button style="float:right;margin-right:8px" id="famSuggest">Auto-Vorschlag</button></h3>';
   if(!state.families.length)h+='<div class="mini">Noch keine Familien. Markieren-Modus → mehrere anhaken → „Auswahl → neue Familie“, oder „Auto-Vorschlag“.</div>';
   state.families.forEach(f=>{
-    const mem=tracks.map((t,i)=>({t,i})).filter(o=>ann(o.t.id).fam===f.id);const pos=mem.map(o=>o.i+1);const adj=pos.every((n,i)=>i===0||n===pos[i-1]+1);
+    const mem=tracks.map((t,i)=>({t,i})).filter(o=>hasFam(o.t.id,f.id));const pos=mem.map(o=>o.i+1);const adj=pos.every((n,i)=>i===0||n===pos[i-1]+1);
     const nSrc=mem.filter(o=>ann(o.t.id).src).length,nSmp=mem.filter(o=>ann(o.t.id).smp).length;
     h+=`<div class="fam-card" style="border-left-color:${f.color}"><div class="hd"><span class="chip fam" style="background:${f.color}">${esc(f.name)}</span><span class="mini">${mem.length} Titel · Pos ${pos.join(', ')||'—'}</span><button class="linkbtn" onclick="renFam('${f.id}')">umbenennen</button><button class="linkbtn" onclick="rmFam('${f.id}')">auflösen</button></div>`;
     h+='<div class="mem">'+mem.map(o=>{const a=ann(o.t.id);return `${o.i+1}. ${esc(o.t.title)} <span class="mini">${esc(o.t.artist)}</span>`+(a.src?' <span class="chip src">Original</span>':'')+(a.smp?' <span class="chip smp">Sampler</span>':'')+((!a.src&&!a.smp)?' <span class="warn">· keine Rolle</span>':'');}).join('<br>')+'</div>';
     let iss=[];if(mem.length<2)iss.push('nur 1 Titel');if(!nSrc)iss.push('kein Original');if(!nSmp)iss.push('kein Sampler');if(!adj&&mem.length>1)iss.push('nicht benachbart');
     h+='<div class="mini">'+(iss.length?'<span class="bad">⚠ '+iss.join(' · ')+'</span>':'<span class="ok">✓ vollständig &amp; benachbart</span>')+'</div></div>';
   });
-  p.innerHTML=h;$('#famAdd').onclick=()=>{const nm=prompt('Name der neuen Familie:');if(nm){newFamily(nm);save();buildFam();render();}};$('#famSuggest').onclick=suggestFamilies;
+  p.innerHTML=h;$('#famAdd').onclick=()=>{const nm=prompt('Name der neuen Familie:');if(nm){newFamily(nm);save();buildFam();refresh();}};$('#famSuggest').onclick=suggestFamilies;
 }
-window.renFam=id=>{const f=famById(id);const nm=prompt('Neuer Name:',f.name);if(nm){f.name=nm;save();buildFam();render();}};
-window.rmFam=id=>{if(confirm('Familie auflösen? Songs bleiben, verlieren nur die Zuordnung.')){delFamily(id);save();buildFam();render();}};
-function suggestFamilies(){const byNorm={};tracks.forEach(t=>{(byNorm[norm(t.title)] ??= []).push(t);});let made=0;Object.entries(byNorm).forEach(([k,v])=>{if(!k||v.length<2)return;if(v.some(t=>ann(t.id).fam))return;const fid=newFamily(v[0].title.split(' - ')[0].replace(/\(.*?\)/,'').trim());v.forEach(t=>ann(t.id).fam=fid);autoRoles(fid);made++;});save();buildFam();render();alert(made?made+' Familien-Vorschläge angelegt (Rollen als Startwert – bitte prüfen).':'Keine neuen Vorschläge.');}
+window.renFam=id=>{const f=famById(id);const nm=prompt('Neuer Name:',f.name);if(nm){f.name=nm;save();buildFam();refresh();}};
+window.rmFam=id=>{if(confirm('Familie auflösen? Songs bleiben, verlieren nur die Zuordnung.')){delFamily(id);save();buildFam();refresh();}};
+function suggestFamilies(){const byNorm={};tracks.forEach(t=>{(byNorm[norm(t.title)] ??= []).push(t);});let made=0;Object.entries(byNorm).forEach(([k,v])=>{if(!k||v.length<2)return;if(v.some(t=>ann(t.id).fams.length))return;const fid=newFamily(v[0].title.split(' - ')[0].replace(/\(.*?\)/,'').trim());v.forEach(t=>addFam(t.id,fid));autoRoles(fid);made++;});save();buildFam();refresh();alert(made?made+' Familien-Vorschläge angelegt (Rollen als Startwert – bitte prüfen).':'Keine neuen Vorschläge.');}
 // ---------- check ----------
 function buildCheck(){
   const p=$('#checkPanel');let h='<h3>Konsistenz-Check</h3>';
   const orphan=tracks.filter(t=>{const a=ann(t.id);return(a.src||a.smp)&&!a.fam;});
   h+='<div class="sctn"><b>Rollen ohne Familie</b><div class="mini">'+(orphan.length?orphan.map(t=>'⚠ '+esc(t.title)+' — '+esc(t.artist)).join('<br>'):'<span class="ok">keine ✓</span>')+'</div></div>';
-  let famIss=[];state.families.forEach(f=>{const mem=tracks.map((t,i)=>({t,i})).filter(o=>ann(o.t.id).fam===f.id);const pos=mem.map(o=>o.i+1),adj=pos.every((n,i)=>i===0||n===pos[i-1]+1);const nSrc=mem.filter(o=>ann(o.t.id).src).length,nSmp=mem.filter(o=>ann(o.t.id).smp).length;let iss=[];if(mem.length<2)iss.push('nur 1 Titel');if(!nSrc)iss.push('kein Original');if(!nSmp)iss.push('kein Sampler');if(!adj&&mem.length>1)iss.push('nicht benachbart');if(iss.length)famIss.push(`⚠ <b>${esc(f.name)}</b>: ${iss.join(', ')} (Pos ${pos.join(', ')})`);});
+  let famIss=[];state.families.forEach(f=>{const mem=tracks.map((t,i)=>({t,i})).filter(o=>hasFam(o.t.id,f.id));const pos=mem.map(o=>o.i+1),adj=pos.every((n,i)=>i===0||n===pos[i-1]+1);const nSrc=mem.filter(o=>ann(o.t.id).src).length,nSmp=mem.filter(o=>ann(o.t.id).smp).length;let iss=[];if(mem.length<2)iss.push('nur 1 Titel');if(!nSrc)iss.push('kein Original');if(!nSmp)iss.push('kein Sampler');if(!adj&&mem.length>1)iss.push('nicht benachbart');if(iss.length)famIss.push(`⚠ <b>${esc(f.name)}</b>: ${iss.join(', ')} (Pos ${pos.join(', ')})`);});
   h+='<div class="sctn"><b>Unvollständige / verstreute Familien</b><div class="mini">'+(famIss.length?famIss.join('<br>'):'<span class="ok">alle ok ✓</span>')+'</div></div>';
   const byId={};tracks.forEach(t=>{(byId[t.id]??=[]).push(t);});const dups=Object.entries(byId).filter(([k,v])=>v.length>1);
   h+='<div class="sctn"><b>Echte Doppel-Einträge</b><div class="mini">'+(dups.length?dups.map(([id,v])=>'⚠ '+esc(v[0].title)+' → Pos '+v.map(t=>tracks.indexOf(t)+1).join(', ')).join('<br>'):'<span class="ok">keine ✓</span>')+'</div></div>';
-  const byNorm={};tracks.forEach(t=>{(byNorm[norm(t.title)]??=[]).push(t);});const sugg=Object.entries(byNorm).filter(([k,v])=>k&&v.length>1&&v.every(t=>!ann(t.id).fam));
+  const byNorm={};tracks.forEach(t=>{(byNorm[norm(t.title)]??=[]).push(t);});const sugg=Object.entries(byNorm).filter(([k,v])=>k&&v.length>1&&v.every(t=>!ann(t.id).fams.length));
   h+='<div class="sctn"><b>Mögliche Familien</b> <span class="mini">(gleicher Titel-Kern, noch nicht zugeordnet)</span><div class="mini">'+(sugg.length?sugg.map(([k,v])=>'• „'+esc(v[0].title.split(' - ')[0])+'“ → Pos '+v.map(t=>tracks.indexOf(t)+1).join(', ')).join('<br>')+'<br><button class="primary" style="margin-top:8px" onclick="suggestFamilies()">Alle übernehmen</button>':'<span class="ok">nichts Offensichtliches offen ✓</span>')+'</div></div>';
   p.innerHTML=h;
 }
@@ -476,7 +484,7 @@ $('#dImport').onclick=()=>{try{applyBackup(JSON.parse($('#dArea').value));$('#dM
 $('#dWipe').onclick=()=>{if(confirm('Wirklich ALLE Familien und Flags löschen?')){state={families:[],ann:{},cfg:state.cfg};save();buildFam();buildCheck();render();$('#dMsg').textContent='Gelöscht.';}};
 // ---------- Backup-Engine ----------
 function backupPayload(){return {app:'soundslikewhat',v:3,savedAt:new Date().toISOString(),state,order:tracks};}
-function applyBackup(obj){const st=(obj&&obj.state)?obj.state:obj;if(!st||!st.ann||!st.families)throw new Error('kein gültiges Backup');state=Object.assign({cfg:{clientId:'',playlistId:DEFAULT_PLAYLIST}},st);if(obj&&Array.isArray(obj.order)&&obj.order.length){tracks=obj.order.map(t=>({...t}));try{localStorage.setItem(CACHEKEY,JSON.stringify(tracks));}catch(e){}}save();initForces();render();updSpotifyUI();bkResume();if($('#famPanel').style.display==='block')buildFam();}
+function applyBackup(obj){const st=(obj&&obj.state)?obj.state:obj;if(!st||!st.ann||!st.families)throw new Error('kein gültiges Backup');state=Object.assign({cfg:{clientId:'',playlistId:DEFAULT_PLAYLIST}},st);if(obj&&Array.isArray(obj.order)&&obj.order.length){tracks=obj.order.map(t=>({...t}));try{localStorage.setItem(CACHEKEY,JSON.stringify(tracks));}catch(e){}}save();Object.keys(state.ann||{}).forEach(k=>ann(k));initForces();render();updSpotifyUI();bkResume();if($('#famPanel').style.display==='block')buildFam();}
 function bkMsg(t){const el=$('#bkStatus');if(el)el.textContent=t;}
 function bkStamp(){bkMsg('Auto-Backup aktiv → zuletzt gesichert '+new Date().toLocaleTimeString());}
 function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('slw_kv',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
@@ -510,9 +518,9 @@ let expFmt='uri';
 function buildExport(){
   if(expFmt==='uri')return tracks.map(t=>'spotify:track:'+t.id).join('\n');
   if(expFmt==='list')return tracks.map((t,i)=>(i+1)+'. '+t.title+' — '+t.artist).join('\n');
-  if(expFmt==='full')return tracks.map((t,i)=>{const a=ann(t.id),f=famById(a.fam);return (i+1)+'. '+t.title+' — '+t.artist+(f?' ['+f.name+']':'')+(a.src?' (Original)':'')+(a.smp?' (Sampler)':'');}).join('\n');
-  if(expFmt==='csv'){const q=s=>'"'+String(s).replace(/"/g,'""')+'"';return 'pos,title,artist,track_id,uri,family,original,sampler\n'+tracks.map((t,i)=>{const a=ann(t.id),f=famById(a.fam);return [i+1,q(t.title),q(t.artist),t.id,'spotify:track:'+t.id,q(f?f.name:''),a.src?1:0,a.smp?1:0].join(',');}).join('\n');}
-  return JSON.stringify(tracks.map((t,i)=>{const a=ann(t.id),f=famById(a.fam);return {pos:i+1,title:t.title,artist:t.artist,uri:'spotify:track:'+t.id,family:f?f.name:null,original:a.src,sampler:a.smp};}),null,2);
+  if(expFmt==='full')return tracks.map((t,i)=>{const a=ann(t.id);const fn=a.fams.map(fid=>(famById(fid)||{}).name).filter(Boolean).join(' | ');return (i+1)+'. '+t.title+' — '+t.artist+(fn?' ['+fn+']':'')+(a.src?' (Original)':'')+(a.smp?' (Sampler)':'');}).join('\n');
+  if(expFmt==='csv'){const q=s=>'"'+String(s).replace(/"/g,'""')+'"';return 'pos,title,artist,track_id,uri,family,original,sampler\n'+tracks.map((t,i)=>{const a=ann(t.id);const fn=a.fams.map(fid=>(famById(fid)||{}).name).filter(Boolean).join(' | ');return [i+1,q(t.title),q(t.artist),t.id,'spotify:track:'+t.id,q(fn),a.src?1:0,a.smp?1:0].join(',');}).join('\n');}
+  return JSON.stringify(tracks.map((t,i)=>{const a=ann(t.id);return {pos:i+1,title:t.title,artist:t.artist,uri:'spotify:track:'+t.id,families:a.fams.map(fid=>(famById(fid)||{}).name).filter(Boolean),original:a.src,sampler:a.smp};}),null,2);
 }
 function openModal(){$('#exp').value=buildExport();$('#modal').style.display='flex';}
 function closeModal(){$('#modal').style.display='none';}
@@ -604,15 +612,11 @@ let GDATA=null, GVB={x:0,y:0,w:GW,h:GH}, GSEL=null, GRAF=null, GDRAG=null, GWIRE
 let GCONNECT=false, GPEND=null, GPOS={}, GVBT=null, zoomRAF=null;
 let SIM={alpha:0, alphaTarget:0, alphaDecay:0.0228, alphaMin:0.02};
 function svgEl(tag,attrs){const e=document.createElementNS('http://www.w3.org/2000/svg',tag);if(attrs)for(const k in attrs)e.setAttribute(k,attrs[k]);return e;}
-function seedLinksFromFamilies(){const L=[];state.families.forEach(f=>{const mem=tracks.map((t,i)=>({t,i})).filter(o=>ann(o.t.id).fam===f.id).sort((a,b)=>a.i-b.i);for(let k=1;k<mem.length;k++){const A=mem[k-1],B=mem[k];let from=A.t.id,to=B.t.id;const aa=ann(A.t.id),bb=ann(B.t.id);if(bb.src&&!bb.smp&&aa.smp&&!aa.src){from=B.t.id;to=A.t.id;}L.push({from,to});}});state.links=L;save();}
+function seedLinksFromFamilies(){const L=[];state.families.forEach(f=>{const mem=tracks.map((t,i)=>({t,i})).filter(o=>hasFam(o.t.id,f.id)).sort((a,b)=>a.i-b.i);for(let k=1;k<mem.length;k++){const A=mem[k-1],B=mem[k];let from=A.t.id,to=B.t.id;const aa=ann(A.t.id),bb=ann(B.t.id);if(bb.src&&!bb.smp&&aa.smp&&!aa.src){from=B.t.id;to=A.t.id;}L.push({from,to});}});state.links=L;save();}
 function ensureLinks(){if(!Array.isArray(state.links))seedLinksFromFamilies();}
 function graphData(){
   const nodes=[],idToNode={};
-  state.families.forEach(f=>{
-    const mem=tracks.map((t,i)=>({t,i})).filter(o=>ann(o.t.id).fam===f.id).sort((a,b)=>a.i-b.i);
-    mem.forEach(o=>{const a=ann(o.t.id);const n={id:o.t.id,title:o.t.title,artist:o.t.artist,pos:o.i+1,fam:f.id,color:f.color,src:!!a.src,smp:!!a.smp};nodes.push(n);idToNode[o.t.id]=n;});
-  });
-  tracks.forEach((t,i)=>{const a=ann(t.id);if(!a.fam&&(a.src||a.smp)){const n={id:t.id,title:t.title,artist:t.artist,pos:i+1,fam:null,color:'#5a5a5f',src:!!a.src,smp:!!a.smp,orphan:true};nodes.push(n);idToNode[t.id]=n;}});
+  tracks.forEach((t,i)=>{const a=ann(t.id);if(a.fams.length||a.src||a.smp){const fid=a.fams[0]||null;const n={id:t.id,title:t.title,artist:t.artist,pos:i+1,fam:fid,fams:a.fams.slice(),color:fid?(famColor(fid)||'#5a5a5f'):'#5a5a5f',src:!!a.src,smp:!!a.smp,orphan:!a.fams.length};nodes.push(n);idToNode[t.id]=n;}});
   ensureLinks();
   const edges=[];const seen={};
   state.links.forEach(l=>{const a=idToNode[l.from],b=idToNode[l.to];if(a&&b){const key=l.from+'>'+l.to;if(seen[key])return;seen[key]=1;edges.push({from:l.from,to:l.to,color:a.orphan?'#6a6a70':a.color});}});
@@ -641,7 +645,7 @@ function buildGraph2D(keep){
     const pv=GPOS[n.id];n.x=pv?pv.x:GW/2+(Math.random()-.5)*380;n.y=pv?pv.y:GH/2+(Math.random()-.5)*380;n.vx=0;n.vy=0;
     const grp=svgEl('g',{class:'gnode'});grp.dataset.id=n.id;
     const op=n.src?1:(n.smp?0.5:0.82);
-    grp.appendChild(svgEl('circle',{r:'14',fill:n.orphan?'#4a4a52':n.color,'fill-opacity':op}));
+    grp.appendChild(svgEl('circle',{r:'14',fill:n.orphan?'#4a4a52':n.color,'fill-opacity':op}));if(n.fams&&n.fams.length>1){for(let k=1;k<n.fams.length&&k<=4;k++){const rc=famColor(n.fams[k]);if(rc)grp.appendChild(svgEl('circle',{r:String(14+2*k),fill:'none',stroke:rc,'stroke-width':'1.6','vector-effect':'non-scaling-stroke',opacity:'0.9'}));}}
     const lab=n.title.length>22?n.title.slice(0,21)+'…':n.title;
     const t1=svgEl('text',{'text-anchor':'middle',y:'27','font-size':'11',fill:'#e8e8ea'});t1.textContent=lab;grp.appendChild(t1);
     const t2=svgEl('text',{'text-anchor':'middle',y:'39','font-size':'9',fill:'#8a8a90'});t2.textContent=n.artist.length>26?n.artist.slice(0,25)+'…':n.artist;grp.appendChild(t2);
@@ -675,15 +679,16 @@ function applyHighlight(){
   const g=GDATA;if(!g)return;const {nodes,edges,idToNode}=g;
   const selFam=GSEL&&idToNode[GSEL]?idToNode[GSEL].fam:undefined;
   const neigh=new Set();if(GSEL){neigh.add(GSEL);edges.forEach(e=>{if(e.from===GSEL)neigh.add(e.to);if(e.to===GSEL)neigh.add(e.from);});}
-  nodes.forEach(n=>{let dim=GSEL&&(selFam!=null?n.fam!==selFam:!neigh.has(n.id));n.g.setAttribute('opacity',dim?0.18:1);});
-  edges.forEach(e=>{const a=idToNode[e.from],b=idToNode[e.to];let dim=GSEL&&(selFam!=null?!(a&&b&&a.fam===selFam&&b.fam===selFam):!(e.from===GSEL||e.to===GSEL));e.line.setAttribute('stroke',dim?'#2a2a2d':e.color);e.line.setAttribute('opacity',dim?0.22:0.5);e.line.setAttribute('stroke-width',dim?1.2:2.4);});
+  nodes.forEach(n=>{let dim=GSEL&&(selFam!=null?n.fams.indexOf(selFam)<0:!neigh.has(n.id));n.g.setAttribute('opacity',dim?0.18:1);});
+  edges.forEach(e=>{const a=idToNode[e.from],b=idToNode[e.to];let dim=GSEL&&(selFam!=null?!(a&&b&&a.fams.indexOf(selFam)>=0&&b.fams.indexOf(selFam)>=0):!(e.from===GSEL||e.to===GSEL));e.line.setAttribute('stroke',dim?'#2a2a2d':e.color);e.line.setAttribute('opacity',dim?0.22:0.5);e.line.setAttribute('stroke-width',dim?1.2:2.4);});
 }
 function startLoop(){if(GRAF)return;const loop=()=>{if(!graphVisible()){GRAF=null;return;}const active=SIM.alpha>SIM.alphaMin||GDRAG;if(active)step();updateDOM();if(active){GRAF=requestAnimationFrame(loop);}else{GRAF=null;}};GRAF=requestAnimationFrame(loop);}
 function reheat(v){SIM.alpha=Math.max(SIM.alpha,v);if(is3D()){if(typeof startLoop3==='function')startLoop3();}else{startLoop();}}
 function updatePending(){$$('#graphSvg .gnode').forEach(g=>g.classList.toggle('pending',GPEND!=null&&g.dataset.id===GPEND));}
-function createLink(from,to){if(from===to)return;ensureLinks();state.links=state.links.filter(l=>!(l.from===to&&l.to===from));if(!state.links.some(l=>l.from===from&&l.to===to))state.links.push({from,to});ann(from).src=true;ann(to).smp=true;save();buildGraph(true);}
-function connectFamily(fromId,toId){if(!fromId||!toId||fromId===toId)return;const af=ann(fromId),at=ann(toId);let fam=af.fam||at.fam;if(!fam){const t=tracks.find(x=>x.id===fromId);fam=newFamily(t?t.title.split(' - ')[0].replace(/\(.*?\)/,'').trim():'');}af.fam=fam;at.fam=fam;createLink(fromId,toId);}
-function deleteLink(from,to){ensureLinks();state.links=state.links.filter(l=>!(l.from===from&&l.to===to));save();buildGraph(true);}
+function refresh(){render();if(typeof graphVisible==='function'&&graphVisible())buildGraph(true);}
+function createLink(from,to){if(from===to)return;ensureLinks();state.links=state.links.filter(l=>!(l.from===to&&l.to===from));if(!state.links.some(l=>l.from===from&&l.to===to))state.links.push({from,to});[from,to].forEach(id=>{ann(id).src=state.links.some(l=>l.from===id);ann(id).smp=state.links.some(l=>l.to===id);});save();refresh();}
+function connectFamily(fromId,toId){if(!fromId||!toId||fromId===toId)return;let fam=primFam(fromId);if(!fam){const t=tracks.find(x=>x.id===fromId);fam=newFamily(t?t.title.split(' - ')[0].replace(/\(.*?\)/,'').trim():'');addFam(fromId,fam);}addFam(toId,fam);createLink(fromId,toId);}
+function deleteLink(from,to){ensureLinks();state.links=state.links.filter(l=>!(l.from===from&&l.to===to));[from,to].forEach(id=>{ann(id).src=state.links.some(l=>l.from===id);ann(id).smp=state.links.some(l=>l.to===id);});save();refresh();}
 function pendClick(id){if(GPEND===null){GPEND=id;}else if(GPEND===id){GPEND=null;}else{connectFamily(GPEND,id);GPEND=null;}updatePending();}
 function graphInteractions(){
   const svg=$('#graphSvg');let last=null,panning=false,moved=false,connFrom=null,connSX=0,connSY=0,connMoved=false,connCX=0,connCY=0;
@@ -750,7 +755,7 @@ $('#btnExport').onclick=openModal;
 // ---------- init ----------
 load();
 (function initData(){try{const c=JSON.parse(localStorage.getItem(CACHEKEY));if(c&&c.length){tracks=c.map(t=>({...t}));$('#srcNote').textContent='zuletzt aus Spotify geladen ('+tracks.length+' Titel)';}}catch(e){}})();
-initForces();render();updSpotifyUI();bkResume();
+Object.keys(state.ann||{}).forEach(k=>ann(k));initForces();render();updSpotifyUI();bkResume();
 handleRedirect().then(()=>{updSpotifyUI();if(tok())spLoad();});
 
 // ================= THEME + BOOT =================
@@ -787,7 +792,7 @@ function build3D(keep){
   const inFam=new Set();g.nodes.forEach(n=>{if(n.fam)inFam.add(n.id);});
   $('#gEmpty').innerHTML=g.nodes.length?('3D · nur Titel mit Familie oder Rolle. '+(tracks.length-inFam.size)+' von '+tracks.length+' noch ohne Familie.'):'<span class="warn">Noch keine Familien/Rollen. Lege welche an, dann erscheint der Graph.</span>';
   let lg='<span class="lg"><span class="dot" style="background:#cfcfd4"></span>Original</span><span class="lg"><span class="dot" style="background:#cfcfd4;opacity:.5"></span>Sampler</span>';g.nodes&&state.families.forEach(f=>{lg+=`<span class="lg"><span class="dot" style="background:${f.color}"></span>${esc(f.name)}</span>`;});$('#gLegend').innerHTML=lg;
-  g.nodes.forEach(seed3);sel3=null;pend3=null;SIM.alpha=1;SIM.alphaTarget=0;
+  g.nodes.forEach(seed3);if(!keep){sel3=null;focus3=null;}pend3=null;SIM.alpha=keep?Math.max(SIM.alpha,0.25):1;SIM.alphaTarget=0;
   resizeCanvas3();if(!keep)fit3D();
   if(!W3){wire3();W3=true;}
   startLoop3();setTimeout(()=>{if(is3D()&&graphVisible())resizeCanvas3();},80);
@@ -821,13 +826,14 @@ function render3(){if(!ctx3||!G3)return;const ctx=ctx3;ctx.clearRect(0,0,W3W,W3H
   const neigh=new Set();if(sel3){neigh.add(sel3);edges.forEach(e=>{if(e.from===sel3)neigh.add(e.to);if(e.to===sel3)neigh.add(e.from);});}
   nodes.forEach(n=>{n._p=proj3(n);GPOS3[n.id]={x:n.x,y:n.y,z:n.z};});
   const es=edges.filter(e=>idToNode[e.from]&&idToNode[e.to]).slice().sort((a,b)=>(idToNode[b.from]._p.zc+idToNode[b.to]._p.zc)-(idToNode[a.from]._p.zc+idToNode[a.to]._p.zc));
-  es.forEach(e=>{const a=idToNode[e.from]._p,b=idToNode[e.to]._p;if(a.zc<=1||b.zc<=1)return;let dim=sel3&&(selFam!=null?!(idToNode[e.from].fam===selFam&&idToNode[e.to].fam===selFam):!(e.from===sel3||e.to===sel3));ctx.strokeStyle=e.color;ctx.globalAlpha=dim?0.18:0.92;ctx.lineWidth=dim?0.9:2.4;ctx.shadowColor=e.color;ctx.shadowBlur=dim?0:5;ctx.beginPath();ctx.moveTo(a.sx,a.sy);ctx.lineTo(b.sx,b.sy);ctx.stroke();});
+  es.forEach(e=>{const a=idToNode[e.from]._p,b=idToNode[e.to]._p;if(a.zc<=1||b.zc<=1)return;let dim=sel3&&(selFam!=null?!(idToNode[e.from].fams.indexOf(selFam)>=0&&idToNode[e.to].fams.indexOf(selFam)>=0):!(e.from===sel3||e.to===sel3));ctx.strokeStyle=e.color;ctx.globalAlpha=dim?0.18:0.92;ctx.lineWidth=dim?0.9:2.4;ctx.shadowColor=e.color;ctx.shadowBlur=dim?0:5;ctx.beginPath();ctx.moveTo(a.sx,a.sy);ctx.lineTo(b.sx,b.sy);ctx.stroke();});
   const ns=nodes.slice().sort((a,b)=>b._p.zc-a._p.zc);
-  ns.forEach(n=>{const p=n._p;if(p.zc<=1)return;let dim=sel3&&(selFam!=null?n.fam!==selFam:!neigh.has(n.id));const r=Math.max(1.6,(n.src?11:(n.smp?4.5:6))*p.sc*0.55);const col=n.orphan?'#4a4a52':n.color;ctx.globalAlpha=dim?0.14:(n.src?1:0.6);ctx.shadowColor=col;ctx.shadowBlur=dim?0:Math.min(22,r*1.5+5);ctx.fillStyle=col;ctx.beginPath();ctx.arc(p.sx,p.sy,r,0,6.2832);ctx.fill();
+  ns.forEach(n=>{const p=n._p;if(p.zc<=1)return;let dim=sel3&&(selFam!=null?n.fams.indexOf(selFam)<0:!neigh.has(n.id));const r=Math.max(1.6,(n.src?11:(n.smp?4.5:6))*p.sc*0.55);const col=n.orphan?'#4a4a52':n.color;ctx.globalAlpha=dim?0.14:(n.src?1:0.6);ctx.shadowColor=col;ctx.shadowBlur=dim?0:Math.min(22,r*1.5+5);ctx.fillStyle=col;ctx.beginPath();ctx.arc(p.sx,p.sy,r,0,6.2832);ctx.fill();
+    if(!dim&&n.fams&&n.fams.length>1){for(let k=1;k<n.fams.length&&k<=4;k++){const rc=famColor(n.fams[k]);if(rc){ctx.strokeStyle=rc;ctx.globalAlpha=0.9;ctx.lineWidth=1.6;ctx.shadowBlur=0;ctx.beginPath();ctx.arc(p.sx,p.sy,r+3+2*(k-1),0,6.2832);ctx.stroke();}}}
     if(n.id===pend3){ctx.globalAlpha=1;ctx.shadowBlur=0;ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.sx,p.sy,r+3,0,6.2832);ctx.stroke();}});
   ctx.globalCompositeOperation='source-over';ctx.shadowBlur=0;ctx.globalAlpha=1;
   if(conn3&&conn3.from&&conn3.from._p){ctx.save();ctx.strokeStyle='#fff';ctx.globalAlpha=0.85;ctx.setLineDash([6,4]);ctx.lineWidth=1.8;ctx.beginPath();ctx.moveTo(conn3.from._p.sx,conn3.from._p.sy);ctx.lineTo(conn3.mx,conn3.my);ctx.stroke();ctx.restore();}
-  if(sel3&&selFam!=null){const now=performance.now();ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;nodes.forEach(n=>{if(n.fam!==selFam)return;const p=n._p;if(p.zc<=1)return;const r=Math.max(1.6,(n.src?11:(n.smp?4.5:6))*p.sc*0.55);
+  if(sel3&&selFam!=null){const now=performance.now();ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;nodes.forEach(n=>{if(n.fams.indexOf(selFam)<0)return;const p=n._p;if(p.zc<=1)return;const r=Math.max(1.6,(n.src?11:(n.smp?4.5:6))*p.sc*0.55);
     const title=n.title.length>20?n.title.slice(0,19)+'…':n.title;const art=n.artist.length>24?n.artist.slice(0,23)+'…':n.artist;
     ctx.font="11px 'Share Tech Mono','Noto Sans JP',ui-monospace,monospace";ctx.fillStyle='#dff3ec';ctx.fillText(decodeText(title,labelStart,now,0),p.sx,p.sy+r+13);
     ctx.font="9px 'Share Tech Mono','Noto Sans JP',ui-monospace,monospace";ctx.fillStyle='#79b8ab';ctx.fillText(decodeText(art,labelStart,now,70),p.sx,p.sy+r+24);

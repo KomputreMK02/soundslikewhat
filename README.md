@@ -54,3 +54,21 @@ Nach ~1 Minute ist die Seite aktualisiert.
 Vor dem ersten Zurückschreiben im Tool **Export → JSON/CSV** ziehen (sichert die
 Original-Reihenfolge). Markierungen zusätzlich über **Speichern / Laden → Markierungen
 exportieren** sichern.
+
+## Funktionen (Kurzüberblick)
+- **Zwei Themes:** Standard (dunkel, 2D-Graph) und **EVA** (retrofuturistisch, CRT, 3D-Graph
+  mit orbitierender Kamera). Umschalten oben rechts oder per URL `#eva` / `#std`.
+- **Beziehungs-Graph:** Familien = Farbe, Original = großer „Planet", Sampler = kleine „Monde".
+  Verbindungen (Sample-Ketten) im Graph editierbar; Kräfte über Regler einstellbar.
+- **Spalten-Layout:** Playlist links, offener Tab (Familien/Graph/…) rechts – jede Spalte
+  scrollt einzeln, nichts läuft über den Bildschirm hinaus.
+- **Cloud-Sync (GitHub Gist):** Tags, Familien, Verbindungen & Reihenfolge geräteübergreifend
+  in einem **privaten** Gist. Reiter *Speichern / Laden* → klassischen Token (`ghp_…`, Scope
+  `gist`) einfügen → *Neuen Gist erstellen*; auf weiteren Geräten dieselbe **Gist-ID**.
+- **Auto-Backup** zusätzlich in eine lokale Datei (Chrome/Edge) und als JSON-Export.
+
+## Hinweis: Zurückschreiben nach Spotify
+Seit Spotifys API-Migration (Feb/März 2026) ist das **Ändern** von Playlists für persönliche
+Development-Mode-Apps gesperrt. **Laden** (alle Titel) funktioniert weiter über den neuen
+Endpunkt `/playlists/{id}/items`. Die umsortierte Reihenfolge wendest du daher über
+**Export → Track-URIs** manuell in Spotify an.

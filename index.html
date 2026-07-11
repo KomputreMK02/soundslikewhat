@@ -148,6 +148,18 @@
   #list{flex:1 1 auto;min-width:0}
   #side .panel{margin:8px 16px 12px 22px}
   @media(max-width:880px){#main{flex-direction:column}#main.sideopen #side{flex-basis:auto;width:100%;max-width:none;overflow:visible}#side .panel{margin:0 14px 12px}}
+  /* Voll-Hoehe-Layout: Kopf/Leisten fix, Spalten einzeln scrollbar (Desktop) */
+  html{height:100%}
+  body{display:flex;flex-direction:column;min-height:100vh}
+  @media(min-width:881px){
+    body{height:100vh;overflow:hidden}
+    header,.toolbar,.legend,#batchbar{flex:0 0 auto}
+    #main{flex:1 1 auto;min-height:0;align-items:stretch;overflow:hidden}
+    #list{overflow-y:auto;overflow-x:hidden;height:100%}
+    #main.sideopen #side{overflow-y:auto;overflow-x:hidden;height:100%}
+    #graphSvg,#graph3d{height:calc(100vh - 250px);min-height:300px}
+    #graphPanel.fullscreen #graphSvg,#graphPanel.fullscreen #graph3d{height:calc(100vh - 150px)}
+  }
 </style>
 </head>
 <body>

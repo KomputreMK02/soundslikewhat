@@ -688,10 +688,10 @@ function updateDOM(){
 }
 function applyHighlight(){
   const g=GDATA;if(!g)return;const {nodes,edges,idToNode}=g;
-  const selFam=GSEL&&idToNode[GSEL]?idToNode[GSEL].fam:undefined;
+  const selFams=GSEL&&idToNode[GSEL]?idToNode[GSEL].fams:[];const hasF=selFams.length>0;const inSel=fams=>fams&&fams.some(ff=>selFams.indexOf(ff)>=0);
   const neigh=new Set();if(GSEL){neigh.add(GSEL);edges.forEach(e=>{if(e.from===GSEL)neigh.add(e.to);if(e.to===GSEL)neigh.add(e.from);});}
-  nodes.forEach(n=>{let dim=GSEL&&(selFam!=null?n.fams.indexOf(selFam)<0:!neigh.has(n.id));n.g.setAttribute('opacity',dim?0.18:1);});
-  edges.forEach(e=>{const a=idToNode[e.from],b=idToNode[e.to];let dim=GSEL&&(selFam!=null?!(a&&b&&a.fams.indexOf(selFam)>=0&&b.fams.indexOf(selFam)>=0):!(e.from===GSEL||e.to===GSEL));e.line.setAttribute('stroke',dim?'#2a2a2d':e.color);e.line.setAttribute('opacity',dim?0.22:0.5);e.line.setAttribute('stroke-width',dim?1.2:2.4);});
+  nodes.forEach(n=>{let dim=GSEL&&(hasF?!inSel(n.fams):!neigh.has(n.id));n.g.setAttribute('opacity',dim?0.18:1);});
+  edges.forEach(e=>{const a=idToNode[e.from],b=idToNode[e.to];let dim=GSEL&&(hasF?!(a&&b&&inSel(a.fams)&&inSel(b.fams)):!(e.from===GSEL||e.to===GSEL));e.line.setAttribute('stroke',dim?'#2a2a2d':e.color);e.line.setAttribute('opacity',dim?0.22:0.5);e.line.setAttribute('stroke-width',dim?1.2:2.4);});
 }
 function startLoop(){if(GRAF)return;const loop=()=>{if(!graphVisible()){GRAF=null;return;}const active=SIM.alpha>SIM.alphaMin||GDRAG;if(active)step();updateDOM();if(active){GRAF=requestAnimationFrame(loop);}else{GRAF=null;}};GRAF=requestAnimationFrame(loop);}
 function reheat(v){SIM.alpha=Math.max(SIM.alpha,v);if(is3D()){if(typeof startLoop3==='function')startLoop3();}else{startLoop();}}
@@ -833,18 +833,18 @@ function drawSphere(){const ctx=ctx3;if(!G3)return;const R=cam.dist*1.7;ctx.shad
   ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';}
 function render3(){if(!ctx3||!G3)return;const ctx=ctx3;ctx.clearRect(0,0,W3W,W3H);const {nodes,edges,idToNode}=G3;
   drawSphere();
-  const selFam=sel3&&idToNode[sel3]?idToNode[sel3].fam:undefined;
+  const selFams=sel3&&idToNode[sel3]?idToNode[sel3].fams:[];const hasF=selFams.length>0;const inSel=fams=>fams&&fams.some(ff=>selFams.indexOf(ff)>=0);
   const neigh=new Set();if(sel3){neigh.add(sel3);edges.forEach(e=>{if(e.from===sel3)neigh.add(e.to);if(e.to===sel3)neigh.add(e.from);});}
   nodes.forEach(n=>{n._p=proj3(n);GPOS3[n.id]={x:n.x,y:n.y,z:n.z};});
   const es=edges.filter(e=>idToNode[e.from]&&idToNode[e.to]).slice().sort((a,b)=>(idToNode[b.from]._p.zc+idToNode[b.to]._p.zc)-(idToNode[a.from]._p.zc+idToNode[a.to]._p.zc));
-  es.forEach(e=>{const a=idToNode[e.from]._p,b=idToNode[e.to]._p;if(a.zc<=1||b.zc<=1)return;let dim=sel3&&(selFam!=null?!(idToNode[e.from].fams.indexOf(selFam)>=0&&idToNode[e.to].fams.indexOf(selFam)>=0):!(e.from===sel3||e.to===sel3));ctx.strokeStyle=e.color;ctx.globalAlpha=dim?0.18:0.92;ctx.lineWidth=dim?0.9:2.4;ctx.shadowColor=e.color;ctx.shadowBlur=dim?0:5;ctx.beginPath();ctx.moveTo(a.sx,a.sy);ctx.lineTo(b.sx,b.sy);ctx.stroke();});
+  es.forEach(e=>{const a=idToNode[e.from]._p,b=idToNode[e.to]._p;if(a.zc<=1||b.zc<=1)return;let dim=sel3&&(hasF?!(inSel(idToNode[e.from].fams)&&inSel(idToNode[e.to].fams)):!(e.from===sel3||e.to===sel3));ctx.strokeStyle=e.color;ctx.globalAlpha=dim?0.18:0.92;ctx.lineWidth=dim?0.9:2.4;ctx.shadowColor=e.color;ctx.shadowBlur=dim?0:5;ctx.beginPath();ctx.moveTo(a.sx,a.sy);ctx.lineTo(b.sx,b.sy);ctx.stroke();});
   const ns=nodes.slice().sort((a,b)=>b._p.zc-a._p.zc);
-  ns.forEach(n=>{const p=n._p;if(p.zc<=1)return;let dim=sel3&&(selFam!=null?n.fams.indexOf(selFam)<0:!neigh.has(n.id));const r=Math.max(1.6,(n.src?11:(n.smp?4.5:6))*p.sc*0.55);const col=n.orphan?'#4a4a52':n.color;ctx.globalAlpha=dim?0.14:(n.src?1:0.6);ctx.shadowColor=col;ctx.shadowBlur=dim?0:Math.min(22,r*1.5+5);ctx.fillStyle=col;ctx.beginPath();ctx.arc(p.sx,p.sy,r,0,6.2832);ctx.fill();
+  ns.forEach(n=>{const p=n._p;if(p.zc<=1)return;let dim=sel3&&(hasF?!inSel(n.fams):!neigh.has(n.id));const r=Math.max(1.6,(n.src?11:(n.smp?4.5:6))*p.sc*0.55);const col=n.orphan?'#4a4a52':n.color;ctx.globalAlpha=dim?0.14:(n.src?1:0.6);ctx.shadowColor=col;ctx.shadowBlur=dim?0:Math.min(22,r*1.5+5);ctx.fillStyle=col;ctx.beginPath();ctx.arc(p.sx,p.sy,r,0,6.2832);ctx.fill();
     if(!dim&&n.fams&&n.fams.length>1){for(let k=1;k<n.fams.length&&k<=4;k++){const rc=famColor(n.fams[k]);if(rc){ctx.strokeStyle=rc;ctx.globalAlpha=0.9;ctx.lineWidth=1.6;ctx.shadowBlur=0;ctx.beginPath();ctx.arc(p.sx,p.sy,r+3+2*(k-1),0,6.2832);ctx.stroke();}}}
     if(n.id===pend3){ctx.globalAlpha=1;ctx.shadowBlur=0;ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.sx,p.sy,r+3,0,6.2832);ctx.stroke();}});
   ctx.globalCompositeOperation='source-over';ctx.shadowBlur=0;ctx.globalAlpha=1;
   if(conn3&&conn3.from&&conn3.from._p){ctx.save();ctx.strokeStyle='#fff';ctx.globalAlpha=0.85;ctx.setLineDash([6,4]);ctx.lineWidth=1.8;ctx.beginPath();ctx.moveTo(conn3.from._p.sx,conn3.from._p.sy);ctx.lineTo(conn3.mx,conn3.my);ctx.stroke();ctx.restore();}
-  if(sel3&&selFam!=null){const now=performance.now();ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;nodes.forEach(n=>{if(n.fams.indexOf(selFam)<0)return;const p=n._p;if(p.zc<=1)return;const r=Math.max(1.6,(n.src?11:(n.smp?4.5:6))*p.sc*0.55);
+  if(sel3&&hasF){const now=performance.now();ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;nodes.forEach(n=>{if(!inSel(n.fams))return;const p=n._p;if(p.zc<=1)return;const r=Math.max(1.6,(n.src?11:(n.smp?4.5:6))*p.sc*0.55);
     const title=n.title.length>20?n.title.slice(0,19)+'…':n.title;const art=n.artist.length>24?n.artist.slice(0,23)+'…':n.artist;
     ctx.font="11px 'Share Tech Mono','Noto Sans JP',ui-monospace,monospace";ctx.fillStyle='#dff3ec';ctx.fillText(decodeText(title,labelStart,now,0),p.sx,p.sy+r+13);
     ctx.font="9px 'Share Tech Mono','Noto Sans JP',ui-monospace,monospace";ctx.fillStyle='#79b8ab';ctx.fillText(decodeText(art,labelStart,now,70),p.sx,p.sy+r+24);

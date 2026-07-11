@@ -142,6 +142,12 @@
   [data-theme="eva"] #graphSvg{display:none}
   [data-theme="eva"] #graph3d{display:block}
   [data-theme="eva"] #graphPanel.fullscreen #graph3d{height:calc(100vh - 150px)}
+  #main{display:flex;align-items:flex-start;gap:0}
+  #side{flex:0 0 0;width:0;min-width:0;overflow:hidden}
+  #main.sideopen #side{flex:0 0 46%;width:auto;max-width:640px;overflow:visible}
+  #list{flex:1 1 auto;min-width:0}
+  #side .panel{margin:8px 16px 12px 22px}
+  @media(max-width:880px){#main{flex-direction:column}#main.sideopen #side{flex-basis:auto;width:100%;max-width:none;overflow:visible}#side .panel{margin:0 14px 12px}}
 </style>
 </head>
 <body>
@@ -191,6 +197,8 @@
   <button id="bClear">Auswahl leeren</button>
 </div>
 
+<div id="main">
+  <div id="side">
 <div id="spotifyPanel" class="panel">
   <h3>Spotify verbinden <span id="spStatusPill" class="pill off" style="float:right">getrennt</span></h3>
   <div class="hint">Läuft nur über eine gehostete <b>https</b>-Seite (GitHub Pages) oder <code>http://127.0.0.1</code> – nicht per Doppelklick (<code>file://</code>), weil Spotify das aus Sicherheitsgründen blockt. <span id="spEnvWarn" class="bad"></span></div>
@@ -272,8 +280,9 @@
   <textarea id="dArea" placeholder="Export landet hier – oder JSON einfügen und „Importieren“."></textarea>
   <div class="hint" id="dMsg"></div>
 </div>
-
-<div id="list"></div>
+  </div>
+  <div id="list"></div>
+</div>
 
 <div class="modal" id="modal">
   <div class="box">
@@ -677,7 +686,7 @@ $('#gSetDefault').onclick=()=>{state.gforceBase=Object.assign({},FX);save();cons
 
 // ---------- toolbar / panels ----------
 $('#q').oninput=render;$('#ctx').onchange=render;
-function togglePanel(sel,btn){const p=$(sel);const open=p.style.display==='block';$$('.panel').forEach(x=>x.style.display='none');['#btnFamPanel','#btnCheck','#btnGraph','#btnData','#btnSpotify'].forEach(id=>$(id).classList.remove('on'));if(!open){p.style.display='block';btn.classList.add('on');}}
+function togglePanel(sel,btn){const p=$(sel);const open=p.style.display==='block';$$('.panel').forEach(x=>x.style.display='none');['#btnFamPanel','#btnCheck','#btnGraph','#btnData','#btnSpotify'].forEach(id=>$(id).classList.remove('on'));if(!open){p.style.display='block';btn.classList.add('on');}const _m=$('#main');if(_m)_m.classList.toggle('sideopen',!open);}
 $('#btnEdit').onclick=e=>{editMode=!editMode;e.target.classList.toggle('on',editMode);e.target.textContent='Markieren-Modus: '+(editMode?'an':'aus');$('#editHint').style.display=editMode?'inline':'none';if(editMode){sortMode=false;$('#btnSort').classList.remove('on');$('#btnSort').textContent='Sortieren: aus';selId=null;}render();};
 $('#btnSort').onclick=e=>{sortMode=!sortMode;e.target.classList.toggle('on',sortMode);e.target.textContent='Sortieren: '+(sortMode?'an (ziehen)':'aus');if(sortMode){editMode=false;$('#btnEdit').classList.remove('on');$('#btnEdit').textContent='Markieren-Modus: aus';$('#editHint').style.display='none';}render();};
 $('#btnFamPanel').onclick=e=>{togglePanel('#famPanel',e.target);if($('#famPanel').style.display==='block')buildFam();};

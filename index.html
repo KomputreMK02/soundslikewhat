@@ -178,6 +178,21 @@
   #spotifyEmbed,#spotifyEmbed iframe{width:100%;height:80px;border:0;display:block}
   #previewClose{position:absolute;right:8px;top:6px;width:26px;height:26px;line-height:1;border-radius:13px;padding:0;font-size:13px;z-index:2}
   body.previewing #main{padding-bottom:84px;box-sizing:border-box}
+  /* Familien-Overlay + Spin-Button */
+  #famOverlay{position:absolute;left:0;right:0;top:16%;text-align:center;z-index:6;pointer-events:none;opacity:0;transition:opacity .35s ease;font-weight:800;font-size:min(7vw,48px);color:var(--txt);letter-spacing:1px;padding:0 20px}
+  #famOverlay.show{opacity:1}
+  #gSpin{display:none}
+  [data-theme="eva"] #gSpin{display:inline-flex}
+  [data-theme="eva"] #famOverlay{font-family:'DM Serif Display',Georgia,'Noto Sans JP',serif;font-style:italic;text-transform:uppercase;color:#f3e9d0;font-size:min(9vw,72px);text-shadow:0 0 16px rgba(255,90,44,.55),3px 0 rgba(0,190,255,.4),-3px 0 rgba(255,0,80,.35)}
+  /* EVA: Graph füllt das Panel, Bedienung als Overlays (Box nur um die Buttons) */
+  [data-theme="eva"] #graphPanel:not(.fullscreen){position:relative;padding:0}
+  [data-theme="eva"] #graphPanel>.graph-wrap{position:absolute;inset:0}
+  [data-theme="eva"] #graphPanel>h3{position:absolute;top:13px;left:56px;z-index:7;margin:0;padding:0;background:none;border:0;font-size:13px;max-width:50%;pointer-events:none;text-shadow:0 1px 6px #000,0 0 12px rgba(0,0,0,.85)}
+  [data-theme="eva"] #graphPanel>h3 .mini,[data-theme="eva"] #graphPanel>h3 #gStats{text-shadow:0 1px 6px #000}
+  [data-theme="eva"] #graphPanel>.tabs{position:absolute;top:8px;right:10px;z-index:7;margin:0;width:auto;max-width:70%;justify-content:flex-end;gap:6px;background:rgba(6,12,11,.72);border:1px solid var(--line);border-radius:10px;padding:5px 6px;backdrop-filter:blur(4px)}
+  [data-theme="eva"] #graphPanel>.graph-legend{position:absolute;left:12px;bottom:10px;z-index:7;margin:0;max-width:72%;max-height:58px;overflow:auto;padding:0;background:none;border:0;pointer-events:none;text-shadow:0 1px 5px #000}
+  [data-theme="eva"] #graphPanel>#gEmpty{display:none}
+  [data-theme="eva"] #graphPanel #gHint{display:none}
 </style>
 </head>
 <body>
@@ -261,6 +276,7 @@
     <button id="gConnect" class="iconbtn" title="Verbindungen bearbeiten (Sample-Ketten)"><svg viewBox="0 0 18 18" width="17" height="17" fill="currentColor"><path d="M3 13.2V15h1.8l6.5-6.5-1.8-1.8L3 13.2z"/><path d="M14.8 6.2a.9.9 0 0 0 0-1.3l-1.7-1.7a.9.9 0 0 0-1.3 0l-1.05 1.05 3 3 1.05-1.05z"/></svg></button>
     <button id="gAutoLinks" class="iconbtn" title="Verbindungen automatisch aus Familien erzeugen"><svg viewBox="0 0 18 18" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M7.4 10.6l3.2-3.2"/><path d="M9 5.4l1-1a2.8 2.8 0 0 1 4 4l-1.6 1.6"/><path d="M9 12.6l-1 1a2.8 2.8 0 0 1-4-4l1.6-1.6"/></svg></button>
     <button id="gRelayout" class="iconbtn" title="Neu anordnen"><svg viewBox="0 0 18 18" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 9a6 6 0 1 1-1.8-4.3"/><path d="M15 3.2v3.3h-3.3"/></svg></button>
+    <button id="gSpin" class="iconbtn on" title="Auto-Drehung an/aus (R)"><svg viewBox="0 0 18 18" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 9a5.6 5.6 0 0 1 9.5-4"/><path d="M13.2 2.4V5.5H10.1"/><path d="M14.6 9a5.6 5.6 0 0 1-9.5 4"/><path d="M4.8 15.6V12.5H7.9"/></svg></button>
     <button id="gZoomIn" class="iconbtn" title="Vergrößern"><svg viewBox="0 0 18 18" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="4.8"/><path d="M11.6 11.6L15.5 15.5"/><path d="M8 5.8v4.4M5.8 8h4.4"/></svg></button>
     <button id="gZoomOut" class="iconbtn" title="Verkleinern"><svg viewBox="0 0 18 18" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="4.8"/><path d="M11.6 11.6L15.5 15.5"/><path d="M5.8 8h4.4"/></svg></button>
     <button id="gReset" class="iconbtn" title="Ansicht einpassen"><svg viewBox="0 0 18 18" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="9" cy="9" r="2.2"/><path d="M9 2v2.6M9 13.4V16M2 9h2.6M13.4 9H16"/></svg></button>
@@ -281,6 +297,7 @@
   </div>
     <svg id="graphSvg"></svg>
     <canvas id="graph3d"></canvas>
+    <div id="famOverlay"></div>
   </div>
   <div class="mini" id="gEmpty" style="margin-top:8px"></div>
 </div>
@@ -619,7 +636,7 @@ $('#spCopyRedir').onclick=()=>{navigator.clipboard.writeText(REDIRECT);$('#spCop
 const GW=1000, GH=720;
 const FDEF={CEN:0.02,REP:80,LINK:0.4,DIST:90};
 let FX=Object.assign({},FDEF);
-let GDATA=null, GVB={x:0,y:0,w:GW,h:GH}, GSEL=null, GRAF=null, GDRAG=null, GWIRED=false, hlFam=null;
+let GDATA=null, GVB={x:0,y:0,w:GW,h:GH}, GSEL=null, GRAF=null, GDRAG=null, GWIRED=false, hlFam=null, autoSpin=true, famOvT=null;
 let GCONNECT=false, GPEND=null, GPOS={}, GVBT=null, zoomRAF=null;
 let SIM={alpha:0, alphaTarget:0, alphaDecay:0.0228, alphaMin:0.02};
 function svgEl(tag,attrs){const e=document.createElementNS('http://www.w3.org/2000/svg',tag);if(attrs)for(const k in attrs)e.setAttribute(k,attrs[k]);return e;}
@@ -850,13 +867,16 @@ function render3(){if(!ctx3||!G3)return;const ctx=ctx3;ctx.clearRect(0,0,W3W,W3H
     ctx.font="9px 'Share Tech Mono','Noto Sans JP',ui-monospace,monospace";ctx.fillStyle='#79b8ab';ctx.fillText(decodeText(art,labelStart,now,70),p.sx,p.sy+r+24);
   });ctx.shadowBlur=0;}
 }
-function startLoop3(){if(RAF3)return;const loop=()=>{if(!graphVisible()||!is3D()){RAF3=null;return;}if(!drag3)cam.az+=0.0016;if(focus3&&G3&&G3.idToNode[focus3]){const fn=G3.idToNode[focus3];cam.txT=fn.x;cam.tyT=fn.y;cam.tzT=fn.z;}cam.tx+=(cam.txT-cam.tx)*0.14;cam.ty+=(cam.tyT-cam.ty)*0.14;cam.tz+=(cam.tzT-cam.tz)*0.14;cam.dist+=(cam.distT-cam.dist)*0.2;if(SIM.alpha>SIM.alphaMin)step3D();render3();RAF3=requestAnimationFrame(loop);};RAF3=requestAnimationFrame(loop);}
+function startLoop3(){if(RAF3)return;const loop=()=>{if(!graphVisible()||!is3D()){RAF3=null;return;}if(autoSpin&&!drag3)cam.az+=0.0016;if(focus3&&G3&&G3.idToNode[focus3]){const fn=G3.idToNode[focus3];cam.txT=fn.x;cam.tyT=fn.y;cam.tzT=fn.z;}cam.tx+=(cam.txT-cam.tx)*0.14;cam.ty+=(cam.tyT-cam.ty)*0.14;cam.tz+=(cam.tzT-cam.tz)*0.14;cam.dist+=(cam.distT-cam.dist)*0.2;if(SIM.alpha>SIM.alphaMin)step3D();render3();RAF3=requestAnimationFrame(loop);};RAF3=requestAnimationFrame(loop);}
 function focusNode2D(id){if(!GDATA)return;const n=GDATA.idToNode[id];if(!n)return;GSEL=id;applyHighlight();const rect=$('#graphSvg').getBoundingClientRect();const ar=(rect.width&&rect.height)?rect.width/rect.height:1.4;const w=520,h=w/ar;GVBT={x:n.x-w/2,y:n.y-h/2,w,h};startZoom();}
 function focusNode3D(id){if(!G3)return;const n=G3.idToNode[id];if(!n)return;sel3=id;labelStart=performance.now();focus3=id;cam.txT=n.x;cam.tyT=n.y;cam.tzT=n.z;cam.distT=Math.min(cam.distT,440);startLoop3();}
 function focusGraphOnTrack(id){if(typeof graphVisible!=='function'||!graphVisible())return;hlFam=null;if(is3D())focusNode3D(id);else focusNode2D(id);}
-function focusFamily(fid){hlFam=fid;const g=is3D()?G3:GDATA;if(!g)return;const mem=g.nodes.filter(n=>n.fams&&n.fams.indexOf(fid)>=0);if(!mem.length)return;const rep=mem.find(n=>n.src)||mem[0];if(is3D()){sel3=rep.id;focus3=rep.id;labelStart=performance.now();}else{GSEL=rep.id;applyHighlight();let a=1e9,b=1e9,c=-1e9,d=-1e9;mem.forEach(n=>{a=Math.min(a,n.x);b=Math.min(b,n.y);c=Math.max(c,n.x);d=Math.max(d,n.y);});const pad=90;let vb={x:a-pad,y:b-pad,w:Math.max(300,c-a+2*pad),h:Math.max(300,d-b+2*pad)};matchAspect(vb);GVBT=vb;startZoom();}const fm=famById(fid),el=$('#saveState');if(el&&fm){el.textContent='Familie: '+fm.name;setTimeout(()=>{if(el.textContent==='Familie: '+fm.name)el.textContent='';},1400);}}
+function focusFamily(fid){hlFam=fid;const g=is3D()?G3:GDATA;if(!g)return;const mem=g.nodes.filter(n=>n.fams&&n.fams.indexOf(fid)>=0);if(!mem.length)return;const rep=mem.find(n=>n.src)||mem[0];if(is3D()){sel3=rep.id;focus3=rep.id;labelStart=performance.now();}else{GSEL=rep.id;applyHighlight();let a=1e9,b=1e9,c=-1e9,d=-1e9;mem.forEach(n=>{a=Math.min(a,n.x);b=Math.min(b,n.y);c=Math.max(c,n.x);d=Math.max(d,n.y);});const pad=90;let vb={x:a-pad,y:b-pad,w:Math.max(300,c-a+2*pad),h:Math.max(300,d-b+2*pad)};matchAspect(vb);GVBT=vb;startZoom();}const fm=famById(fid);if(fm)showFamOverlay(fm.name);}
 function cycleFamily(dir){const fams=state.families;if(!fams.length)return;let cur=-1;if(hlFam){cur=fams.findIndex(f=>f.id===hlFam);}else{const sid=is3D()?sel3:GSEL;if(sid){const a=ann(sid);if(a.fams.length)cur=fams.findIndex(f=>f.id===a.fams[0]);}}if(cur<0)cur=(dir>0?-1:0);let next=((cur+dir)%fams.length+fams.length)%fams.length;focusFamily(fams[next].id);}
-window.addEventListener('keydown',e=>{if(!(typeof graphVisible==='function'&&graphVisible()))return;const tag=((e.target&&e.target.tagName)||'').toLowerCase();if(tag==='input'||tag==='textarea')return;if(e.key==='ArrowRight'){e.preventDefault();cycleFamily(1);}else if(e.key==='ArrowLeft'){e.preventDefault();cycleFamily(-1);}});
+window.addEventListener('keydown',e=>{if(!(typeof graphVisible==='function'&&graphVisible()))return;const tag=((e.target&&e.target.tagName)||'').toLowerCase();if(tag==='input'||tag==='textarea')return;if(e.key==='ArrowRight'){e.preventDefault();cycleFamily(1);}else if(e.key==='ArrowLeft'){e.preventDefault();cycleFamily(-1);}else if(e.key==='r'||e.key==='R'){e.preventDefault();toggleSpin();}});
+function showFamOverlay(name){const el=$('#famOverlay');if(!el)return;el.classList.add('show');clearTimeout(famOvT);const start=performance.now(),revEnd=start+name.length*14+90;(function tick(){const now=performance.now();el.textContent=decodeText(name,start,now,0);if(now<revEnd){requestAnimationFrame(tick);}else{el.textContent=name;}})();famOvT=setTimeout(()=>el.classList.remove('show'),1700);}
+function toggleSpin(){autoSpin=!autoSpin;const b=$('#gSpin');if(b)b.classList.toggle('on',autoSpin);if(autoSpin&&is3D())startLoop3();}
+if($('#gSpin'))$('#gSpin').onclick=toggleSpin;
 function pickAtXY(cx,cy){if(!G3)return null;const r=$('#graph3d').getBoundingClientRect();const mx=cx-r.left,my=cy-r.top;let best=null,bd=22;G3.nodes.forEach(n=>{if(!n._p||n._p.zc<=1)return;const d=Math.hypot(n._p.sx-mx,n._p.sy-my);if(d<bd){bd=d;best=n;}});return best;}
 function pickNode(e){return pickAtXY(e.clientX,e.clientY);}
 function nodeClick(n){if(!n){if(!GCONNECT){sel3=null;focus3=null;cam.txT=0;cam.tyT=0;cam.tzT=0;}return;}if(GCONNECT){if(pend3===null)pend3=n.id;else if(pend3===n.id)pend3=null;else{connectFamily(pend3,n.id);pend3=null;}}else{sel3=(sel3===n.id?null:n.id);hlFam=null;if(sel3){labelStart=performance.now();focus3=sel3;previewId(sel3);}else{focus3=null;cam.txT=0;cam.tyT=0;cam.tzT=0;}}}

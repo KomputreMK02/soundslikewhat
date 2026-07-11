@@ -271,6 +271,21 @@
     <div class="mini" id="bkStatus">Auto-Backup: nicht eingerichtet.</div>
     <input type="file" id="bkFile" accept="application/json,.json" style="display:none">
   </div>
+  <div class="sctn">
+    <b>Cloud-Sync über GitHub Gist</b>
+    <div class="mini">Speichert Tags, Familien, Verbindungen &amp; Reihenfolge in einem <b>privaten</b> Gist in deinem GitHub – geräteübergreifend. <a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=soundslikewhat-sync" target="_blank" style="color:var(--blue)">Token erstellen</a> (Scope „gist" anhaken). Auf weiteren Geräten dieselbe <b>Gist-ID</b> eintragen.</div>
+    <div class="mini" style="margin-top:6px">GitHub-Token:</div><input id="gsToken" class="txt" type="password" placeholder="ghp_… / github_pat_…">
+    <div class="mini" style="margin-top:6px">Gist-ID:</div><input id="gsId" class="txt" placeholder="leer lassen und „Neuen Gist erstellen“ klicken">
+    <div class="tabs">
+      <button id="gsCreate" class="primary">Neuen Gist erstellen</button>
+      <button id="gsConnect">Verbinden &amp; laden</button>
+      <button id="gsPush">Hochladen</button>
+      <button id="gsPull">Laden</button>
+      <button id="gsAuto">Auto-Sync: aus</button>
+      <button id="gsOff">Trennen</button>
+    </div>
+    <div class="mini" id="gsStatus">Cloud-Sync: nicht verbunden.</div>
+  </div>
   <div class="hint" style="margin-top:6px">Manueller Text-Export/Import (alles in einem JSON):</div>
   <div class="tabs">
     <button id="dExport">Markierungen exportieren</button>
@@ -318,7 +333,7 @@ const PALETTE=['#e6552f','#3f8ad1','#8e5cd1','#2fa96b','#d1a02f','#c94f86','#4fb
 let state={families:[],ann:{},cfg:{clientId:'',playlistId:DEFAULT_PLAYLIST}};
 function load(){try{const s=JSON.parse(localStorage.getItem(LSKEY));if(s&&s.ann){state=Object.assign({families:[],ann:{},cfg:{}},s);state.families=state.families||[];state.ann=state.ann||{};state.cfg=Object.assign({clientId:'',playlistId:DEFAULT_PLAYLIST},s.cfg||{});}}catch(e){}}
 let saveTimer=null;
-function save(){localStorage.setItem(LSKEY,JSON.stringify(state));if(typeof scheduleBackup==='function')scheduleBackup();$('#saveState').textContent='gespeichert ✓';clearTimeout(saveTimer);saveTimer=setTimeout(()=>$('#saveState').textContent='',1200);}
+function save(){state.ts=Date.now();localStorage.setItem(LSKEY,JSON.stringify(state));if(typeof scheduleBackup==='function')scheduleBackup();if(typeof gistSchedule==='function')gistSchedule();$('#saveState').textContent='gespeichert ✓';clearTimeout(saveTimer);saveTimer=setTimeout(()=>$('#saveState').textContent='',1200);}
 function ann(id){return state.ann[id] ??= {fam:null,src:false,smp:false};}
 function famById(id){return state.families.find(f=>f.id===id);}
 function famColor(id){const f=famById(id);return f?f.color:null;}
@@ -818,6 +833,31 @@ function wire3(){const cv=$('#graph3d');if(!cv)return;
     else if(t3.mode==='tap'&&!t3.moved)nodeClick(t3.n);
     drag3=null;drag3node=null;t3=null;},{passive:false});
 }
+
+
+// ================= CLOUD-SYNC (GitHub Gist) =================
+const GISTKEY='slw_gist',GISTFILE='soundslikewhat.json';
+let gistTimer=null;
+function gistCfg(){try{return JSON.parse(localStorage.getItem(GISTKEY))||{};}catch(e){return {};}}
+function setGistCfg(c){localStorage.setItem(GISTKEY,JSON.stringify(c));}
+function gsMsg(t){const el=$('#gsStatus');if(el)el.textContent=t;}
+async function gistErr(r){try{const j=await r.json();return j.message||'';}catch(e){return '';}}
+async function gistApi(method,url,body){const c=gistCfg();return fetch(url,{method,headers:{'Authorization':'Bearer '+(c.token||''),'Accept':'application/vnd.github+json','Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});}
+async function gistCreate(){const c=gistCfg();if(!c.token){gsMsg('Bitte zuerst Token eintragen.');return;}gsMsg('Erstelle Gist…');let r;try{r=await gistApi('POST','https://api.github.com/gists',{description:'soundslikewhat sync',public:false,files:{[GISTFILE]:{content:JSON.stringify(backupPayload())}}});}catch(e){gsMsg('Netzwerkfehler.');return;}if(!r.ok){gsMsg('Fehler ('+r.status+'): '+(await gistErr(r)));return;}const j=await r.json();c.gistId=j.id;c.auto=true;setGistCfg(c);gsMsg('Gist erstellt & verbunden ✓ · Gist-ID: '+j.id);updGistUI();}
+async function gistPush(){const c=gistCfg();if(!c.token||!c.gistId)return;try{const r=await gistApi('PATCH','https://api.github.com/gists/'+c.gistId,{files:{[GISTFILE]:{content:JSON.stringify(backupPayload())}}});if(r.ok){gsMsg('Cloud-Sync ✓ '+new Date().toLocaleTimeString());}else{gsMsg('Sync-Fehler ('+r.status+'): '+(await gistErr(r)));}}catch(e){gsMsg('Sync-Netzwerkfehler.');}}
+async function gistPull(mode){const c=gistCfg();if(!c.token||!c.gistId){gsMsg('Nicht verbunden.');return;}gsMsg('Lade aus Cloud…');let r;try{r=await gistApi('GET','https://api.github.com/gists/'+c.gistId);}catch(e){gsMsg('Netzwerkfehler.');return;}if(!r.ok){gsMsg('Fehler beim Laden ('+r.status+'): '+(await gistErr(r)));return;}const j=await r.json();const file=j.files&&j.files[GISTFILE];if(!file){gsMsg('Noch kein Speicherstand im Gist.');return;}let content=file.content;try{if(file.truncated&&file.raw_url)content=await (await fetch(file.raw_url)).text();}catch(e){}let obj;try{obj=JSON.parse(content);}catch(e){gsMsg('Cloud-Daten ungültig.');return;}const rts=(obj.state&&obj.state.ts)||0;if(mode==='auto'&&rts<=(state.ts||0)){gsMsg('Cloud-Sync ✓ (lokal ist aktuell)');return;}applyBackup(obj);gsMsg('Aus Cloud geladen ✓ '+new Date().toLocaleTimeString());}
+function gistSchedule(){const c=gistCfg();if(!c.token||!c.gistId||!c.auto)return;clearTimeout(gistTimer);gistTimer=setTimeout(gistPush,2000);}
+function updGistUI(){const c=gistCfg();const t=$('#gsToken');if(t&&document.activeElement!==t)t.value=c.token||'';const i=$('#gsId');if(i&&document.activeElement!==i)i.value=c.gistId||'';const a=$('#gsAuto');if(a){a.textContent='Auto-Sync: '+(c.auto?'an':'aus');a.classList.toggle('on',!!c.auto);}if(c.token&&c.gistId)gsMsg('Verbunden'+(c.auto?' · Auto-Sync an':'')+' · Gist '+String(c.gistId).slice(0,10)+'…');}
+if($('#gsToken'))$('#gsToken').oninput=e=>{const c=gistCfg();c.token=e.target.value.trim();setGistCfg(c);};
+if($('#gsId'))$('#gsId').oninput=e=>{const c=gistCfg();c.gistId=e.target.value.trim();setGistCfg(c);};
+if($('#gsCreate'))$('#gsCreate').onclick=gistCreate;
+if($('#gsConnect'))$('#gsConnect').onclick=()=>{const c=gistCfg();if(!c.token||!c.gistId){gsMsg('Token und Gist-ID nötig.');return;}c.auto=true;setGistCfg(c);gistPull(true);updGistUI();};
+if($('#gsPush'))$('#gsPush').onclick=gistPush;
+if($('#gsPull'))$('#gsPull').onclick=()=>gistPull(true);
+if($('#gsAuto'))$('#gsAuto').onclick=()=>{const c=gistCfg();c.auto=!c.auto;setGistCfg(c);updGistUI();if(c.auto)gistPush();};
+if($('#gsOff'))$('#gsOff').onclick=()=>{setGistCfg({});updGistUI();gsMsg('Getrennt.');};
+updGistUI();
+if(gistCfg().token&&gistCfg().gistId)setTimeout(()=>gistPull('auto'),400);
 
 </script>
 </body>

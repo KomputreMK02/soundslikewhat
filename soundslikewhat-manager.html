@@ -172,6 +172,8 @@
   #graphPanel.fullscreen #graphSvg,#graphPanel.fullscreen #graph3d,[data-theme="eva"] #graphPanel.fullscreen #graph3d,[data-theme="eva"] #graphPanel.fullscreen #graphSvg{height:100%}
   .row.dropinto{background:#12351f;box-shadow:inset 0 0 0 1px var(--green)}
   .chip.rmfam{cursor:pointer}
+  .row.listpend{background:#12351f;box-shadow:inset 0 0 0 1px var(--green)}
+  .row{touch-action:pan-y}
 </style>
 </head>
 <body>
@@ -380,6 +382,9 @@ function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>
 function hl(s,q){if(!q)return esc(s);const i=s.toLowerCase().indexOf(q.toLowerCase());if(i<0)return esc(s);return esc(s.slice(0,i))+'<mark>'+esc(s.slice(i,i+q.length))+'</mark>'+esc(s.slice(i+q.length));}
 
 let editMode=false,sortMode=false,selId=null;const batch=new Set();
+const TOUCH=(typeof matchMedia==='function'&&matchMedia('(pointer: coarse)').matches)||('ontouchstart' in window);
+let listPend=null,listLastId=null,listLastT=0;
+function updateListPend(){$$('#list .row').forEach(r=>r.classList.toggle('listpend',listPend!=null&&r.dataset.id===listPend));const e=$('#saveState');if(e){if(listPend)e.textContent='Zielsong antippen…';else if(e.textContent==='Zielsong antippen…')e.textContent='';}}
 
 // ---------- render ----------
 function render(){
@@ -396,7 +401,7 @@ function render(){
     if(!show)row.className+=' hidden';
     if(q&&ctxIdx.has(i)&&!matchIdx.has(i))row.className+=' dim';
     const col=(a.fams&&a.fams.length)?nodeColorOf(t.id):null;if(col)row.style.borderLeftColor=col;
-    row.dataset.i=i;row.dataset.id=t.id;if(sortMode||!editMode){row.setAttribute('draggable','true');}if(!sortMode&&!editMode)row.title='Auf einen anderen Song ziehen = in dessen Familie aufnehmen';
+    row.dataset.i=i;row.dataset.id=t.id;if(sortMode||(!editMode&&!TOUCH)){row.setAttribute('draggable','true');}if(!sortMode&&!editMode)row.title=(TOUCH?'Doppeltippen, dann Zielsong antippen = verbinden':'Auf einen anderen Song ziehen = in dessen Familie aufnehmen');
     let left='<div class="posw">';
     if(editMode)left+=`<input type="checkbox" class="cbx" data-id="${t.id}" ${batch.has(t.id)?'checked':''}>`;
     if(sortMode)left+='<span class="grip">⋮⋮</span>';
@@ -413,11 +418,11 @@ function render(){
     right+='</div>';
     row.innerHTML=left+mid+right;list.appendChild(row);
   });
-  wire();updStats();updBatchbar();paintSel();
+  wire();updStats();updBatchbar();paintSel();updateListPend();
 }
 function updStats(){$('#stCount').textContent=tracks.length;$('#stFamN').textContent=state.families.length;$('#stSrc').textContent=Object.values(state.ann).filter(a=>a.src).length;$('#stSmp').textContent=Object.values(state.ann).filter(a=>a.smp).length;$('#stDur').textContent=secToHms(tracks.reduce((s,t)=>s+durToSec(t.dur),0))+' gesamt';}
 function wire(){
-  $$('#list .row').forEach(row=>{row.addEventListener('click',e=>{if(editMode||sortMode)return;if(e.target.closest('button,select,input'))return;const i=+row.dataset.i;selId=(selId===i?null:i);paintSel();if(selId!=null&&tracks[selId]&&typeof focusGraphOnTrack==='function')focusGraphOnTrack(tracks[selId].id);});if(sortMode)addDrag(row);else if(!editMode)addConnectDrag(row);});
+  $$('#list .row').forEach(row=>{row.addEventListener('click',e=>{if(editMode||sortMode)return;if(e.target.closest('button,select,input'))return;const id=row.dataset.id;if(TOUCH){if(listPend){if(id===listPend){listPend=null;}else{connectFamily(listPend,id);listPend=null;}updateListPend();return;}const now=Date.now();if(listLastId===id&&now-listLastT<400){listPend=id;listLastId=null;updateListPend();return;}listLastId=id;listLastT=now;}const i=+row.dataset.i;selId=(selId===i?null:i);paintSel();if(selId!=null&&tracks[selId]&&typeof focusGraphOnTrack==='function')focusGraphOnTrack(tracks[selId].id);});if(sortMode)addDrag(row);else if(!editMode&&!TOUCH)addConnectDrag(row);});
   $$('.rolebtn').forEach(b=>b.addEventListener('click',()=>{const a=ann(b.dataset.id);a[b.dataset.role]=!a[b.dataset.role];save();refresh();}));
   $$('select.fam').forEach(s=>s.addEventListener('change',()=>{const id=s.dataset.id;if(s.value==='__new'){const nm=prompt('Name der neuen Familie:');if(nm){const fid=newFamily(nm);addFam(id,fid);}save();refresh();return;}if(s.value)addFam(id,s.value);save();refresh();}));
   $$('.rmfam').forEach(c=>c.addEventListener('click',ev=>{ev.stopPropagation();removeFam(c.dataset.rm,c.dataset.fid);save();refresh();}));

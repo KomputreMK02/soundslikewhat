@@ -148,18 +148,28 @@
   #list{flex:1 1 auto;min-width:0}
   #side .panel{margin:8px 16px 12px 22px}
   @media(max-width:880px){#main{flex-direction:column}#main.sideopen #side{flex-basis:auto;width:100%;max-width:none;overflow:visible}#side .panel{margin:0 14px 12px}}
-  /* Voll-Hoehe-Layout: Kopf/Leisten fix, Spalten einzeln scrollbar (Desktop) */
+  /* Voll-Hoehe-Layout, Regionen wie in Blender: jeder Bereich fuellt seinen Platz, kein Ueberlauf */
+  *{scrollbar-width:none;-ms-overflow-style:none}
+  *::-webkit-scrollbar{width:0;height:0;display:none}
   html{height:100%}
   body{display:flex;flex-direction:column;min-height:100vh}
   @media(min-width:881px){
     body{height:100vh;overflow:hidden}
     header,.toolbar,.legend,#batchbar{flex:0 0 auto}
     #main{flex:1 1 auto;min-height:0;align-items:stretch;overflow:hidden}
-    #list{overflow-y:auto;overflow-x:hidden;height:100%}
-    #main.sideopen #side{overflow-y:auto;overflow-x:hidden;height:100%}
-    #graphSvg,#graph3d{height:calc(100vh - 250px);min-height:300px}
-    #graphPanel.fullscreen #graphSvg,#graphPanel.fullscreen #graph3d{height:calc(100vh - 150px)}
+    #list{overflow-y:auto;overflow-x:hidden;height:100%;box-sizing:border-box}
+    #main.sideopen #side{overflow:hidden;height:100%;box-sizing:border-box;padding:8px 16px 10px 22px}
+    #side .panel{height:100%;margin:0;overflow-y:auto;overflow-x:hidden;box-sizing:border-box}
+    #side #graphPanel{display:flex;flex-direction:column;overflow:hidden}
+    #side #graphPanel .graph-legend{flex:0 0 auto;max-height:96px;overflow:auto}
+    #side #graphPanel .graph-wrap{flex:1 1 auto;min-height:0}
+    #side #graphSvg,#side #graph3d{height:100%;min-height:0}
   }
+  /* Vollansicht: gleicher Grundsatz - Graph fuellt den Rest */
+  #graphPanel.fullscreen{display:flex;flex-direction:column;overflow:hidden}
+  #graphPanel.fullscreen .graph-legend{flex:0 0 auto;max-height:96px;overflow:auto}
+  #graphPanel.fullscreen .graph-wrap{flex:1 1 auto;min-height:0}
+  #graphPanel.fullscreen #graphSvg,#graphPanel.fullscreen #graph3d,[data-theme="eva"] #graphPanel.fullscreen #graph3d,[data-theme="eva"] #graphPanel.fullscreen #graphSvg{height:100%}
 </style>
 </head>
 <body>
@@ -604,7 +614,7 @@ function easeZoom(){if(!GVBT){zoomRAF=null;return;}const k=0.22;let done=true;['
 function startZoom(){if(!zoomRAF)zoomRAF=requestAnimationFrame(easeZoom);}
 function cancelZoom(){GVBT=null;if(zoomRAF){cancelAnimationFrame(zoomRAF);zoomRAF=null;}}
 function fitView(){const ns=GDATA?GDATA.nodes:[];if(!ns.length){GVB={x:0,y:0,w:GW,h:GH};}else{let a=1e9,b=1e9,c=-1e9,d=-1e9;ns.forEach(n=>{a=Math.min(a,n.x);b=Math.min(b,n.y);c=Math.max(c,n.x);d=Math.max(d,n.y);});const pad=110;GVB={x:a-pad,y:b-pad,w:Math.max(260,c-a+2*pad),h:Math.max(260,d-b+2*pad)};}matchAspect(GVB);applyVB();cancelZoom();}
-function graphVisible(){return $('#graphPanel').style.display==='block';}
+function graphVisible(){const d=$('#graphPanel').style.display;return d==='flex'||d==='block';}
 function buildGraph2D(keep){
   GDATA=graphData();const g=GDATA;const svg=$('#graphSvg');
   $('#gStats').textContent=g.nodes.length+' Knoten · '+g.edges.length+' Verbindungen · '+state.families.length+' Familien';
@@ -713,12 +723,12 @@ $('#gSetDefault').onclick=()=>{state.gforceBase=Object.assign({},FX);save();cons
 
 // ---------- toolbar / panels ----------
 $('#q').oninput=render;$('#ctx').onchange=render;
-function togglePanel(sel,btn){const p=$(sel);const open=p.style.display==='block';$$('.panel').forEach(x=>x.style.display='none');['#btnFamPanel','#btnCheck','#btnGraph','#btnData','#btnSpotify'].forEach(id=>$(id).classList.remove('on'));if(!open){p.style.display='block';btn.classList.add('on');}const _m=$('#main');if(_m)_m.classList.toggle('sideopen',!open);}
+function togglePanel(sel,btn){const p=$(sel);const open=(p.style.display!=='none'&&p.style.display!=='');$$('.panel').forEach(x=>x.style.display='none');['#btnFamPanel','#btnCheck','#btnGraph','#btnData','#btnSpotify'].forEach(id=>$(id).classList.remove('on'));if(!open){p.style.display=(sel==='#graphPanel'?'flex':'block');btn.classList.add('on');}const _m=$('#main');if(_m)_m.classList.toggle('sideopen',!open);}
 $('#btnEdit').onclick=e=>{editMode=!editMode;e.target.classList.toggle('on',editMode);e.target.textContent='Markieren-Modus: '+(editMode?'an':'aus');$('#editHint').style.display=editMode?'inline':'none';if(editMode){sortMode=false;$('#btnSort').classList.remove('on');$('#btnSort').textContent='Sortieren: aus';selId=null;}render();};
 $('#btnSort').onclick=e=>{sortMode=!sortMode;e.target.classList.toggle('on',sortMode);e.target.textContent='Sortieren: '+(sortMode?'an (ziehen)':'aus');if(sortMode){editMode=false;$('#btnEdit').classList.remove('on');$('#btnEdit').textContent='Markieren-Modus: aus';$('#editHint').style.display='none';}render();};
 $('#btnFamPanel').onclick=e=>{togglePanel('#famPanel',e.target);if($('#famPanel').style.display==='block')buildFam();};
 $('#btnCheck').onclick=e=>{togglePanel('#checkPanel',e.target);if($('#checkPanel').style.display==='block')buildCheck();};
-$('#btnGraph').onclick=e=>{togglePanel('#graphPanel',e.target);if($('#graphPanel').style.display==='block')buildGraph();};
+$('#btnGraph').onclick=e=>{togglePanel('#graphPanel',e.target);if(graphVisible())buildGraph();};
 $('#btnSpotify').onclick=e=>{togglePanel('#spotifyPanel',e.target);updSpotifyUI();};
 $('#btnData').onclick=e=>{togglePanel('#dataPanel',e.target);};
 $('#btnExport').onclick=openModal;
@@ -735,7 +745,7 @@ let THEME=(function(){const h=location.hash.replace('#','');if(h==='eva'||h==='s
 function is3D(){return THEME==='eva';}
 function applyTheme(t){THEME=t;document.documentElement.setAttribute('data-theme',t);try{localStorage.setItem(THKEY,t);}catch(e){}try{history.replaceState(null,'','#'+t);}catch(e){}
   const b=$('#themeBtn');if(b)b.textContent=(t==='eva'?'STD':'EVA');
-  if($('#graphPanel')&&$('#graphPanel').style.display==='block'){if(typeof stopEngines==='function')stopEngines();buildGraph(false);}}
+  if($('#graphPanel')&&graphVisible()){if(typeof stopEngines==='function')stopEngines();buildGraph(false);}}
 const BOOT_LINES=['SLW-OS BOOT','soundslikewhat 起動用オペレーティングシステム  Ver.3.0','Copyright (C) 2024  soundslikewhat','','CO-CPU ................... CHECK       OK','I/O VECTORS .............. CHECK 256   OK','SAMPLE ANALYZER .......... CHECK       OK','FAMILY LINKER ............ CHECK       OK','GRAPH ENGINE 3D .......... CHECK       OK','CRT DRIVER ............... CHECK       OK','','LOADING PLAYLIST DATA ....','サンプル・ネットワーク 準備完了','','READY.'];
 let bootActive=false;
 function playBoot(){const bo=$('#boot'),log=$('#bootlog');if(!bo)return;bootActive=true;bo.classList.add('on');log.textContent='';let line=0,cur='';

@@ -231,6 +231,7 @@
   <label class="chk"><input type="checkbox" id="ctx" checked> Nachbarn zeigen</label>
   <button id="btnEdit">Markieren-Modus: aus</button>
   <button id="btnSort">Sortieren: aus</button>
+  <button id="btnAutoSort" title="Liste nach Familien gruppieren – verbundene Familien nebeneinander, familienlose Songs ans Ende">Nach Familien sortieren</button>
   <button id="btnFamPanel">Familien</button>
   <button id="btnCheck">Prüfen</button>
   <button id="btnGraph">Graph</button>
@@ -784,11 +785,44 @@ bindFx('#fxCEN','CEN');bindFx('#fxREP','REP');bindFx('#fxLINK','LINK');bindFx('#
 $('#gForceReset').onclick=()=>{FX=Object.assign({},state.gforceBase||FDEF);state.gforce=Object.assign({},FX);save();initForces();reheat(0.5);};
 $('#gSetDefault').onclick=()=>{state.gforceBase=Object.assign({},FX);save();const m=$('#gForceMsg');if(m){m.textContent='Als Standard gespeichert ✓';setTimeout(()=>m.textContent='',1600);}};
 
+function autoSortFamilies(){
+  if(!tracks.length)return;
+  const famIds=state.families.map(f=>f.id);
+  function tf(id){return (ann(id).fams||[]).filter(fid=>famIds.indexOf(fid)>=0);}
+  const famSongs={};famIds.forEach(fid=>famSongs[fid]=[]);
+  tracks.forEach(t=>{if(!t.id)return;tf(t.id).forEach(fid=>famSongs[fid].push(t.id));});
+  const activeFams=famIds.filter(fid=>famSongs[fid].length>0);
+  function shared(a,b){const A={};famSongs[a].forEach(id=>A[id]=1);let c=0;famSongs[b].forEach(id=>{if(A[id])c++;});return c;}
+  const remaining={};activeFams.forEach(f=>remaining[f]=1);
+  function nextRemaining(){for(let i=0;i<activeFams.length;i++)if(remaining[activeFams[i]])return activeFams[i];return null;}
+  const seq=[];let start;
+  while((start=nextRemaining())){
+    seq.push(start);delete remaining[start];let last=start;
+    while(true){let best=null,bestC=0;activeFams.forEach(f=>{if(!remaining[f])return;const c=shared(last,f);if(c>bestC){bestC=c;best=f;}});if(!best||bestC<=0)break;seq.push(best);delete remaining[best];last=best;}
+  }
+  const placed={};const order=[];
+  for(let k=0;k<seq.length;k++){
+    const fid=seq[k],next=seq[k+1];const seen={};const uniq=[];
+    famSongs[fid].forEach(id=>{if(!placed[id]&&!seen[id]){seen[id]=1;uniq.push(id);}});
+    const head=[],tail=[];uniq.forEach(id=>{if(next&&tf(id).indexOf(next)>=0)tail.push(id);else head.push(id);});
+    head.concat(tail).forEach(id=>{placed[id]=1;order.push(id);});
+  }
+  tracks.forEach(t=>{if(t.id&&!placed[t.id]&&tf(t.id).length===0){placed[t.id]=1;order.push(t.id);}});
+  tracks.forEach(t=>{if(t.id&&!placed[t.id]){placed[t.id]=1;order.push(t.id);}});
+  const byId={};tracks.forEach(t=>{if(t.id)byId[t.id]=t;});
+  const nt=order.map(id=>byId[id]).filter(Boolean);tracks.forEach(t=>{if(!t.id)nt.push(t);});
+  tracks=nt;tracks.forEach((t,i)=>t.pos=i+1);
+  try{localStorage.setItem(CACHEKEY,JSON.stringify(tracks));}catch(e){}
+  save();render();
+  const e=$('#saveState');if(e){e.textContent='Nach Familien sortiert ✓';setTimeout(()=>{if(e.textContent==='Nach Familien sortiert ✓')e.textContent='';},1600);}
+  if(typeof SND!=='undefined'&&SND.success)SND.success();
+}
 // ---------- toolbar / panels ----------
 $('#q').oninput=render;$('#ctx').onchange=render;
 function togglePanel(sel,btn){const p=$(sel);const open=(p.style.display!=='none'&&p.style.display!=='');$$('.panel').forEach(x=>x.style.display='none');['#btnFamPanel','#btnCheck','#btnGraph','#btnData','#btnSpotify'].forEach(id=>$(id).classList.remove('on'));if(!open){p.style.display=(sel==='#graphPanel'?'flex':'block');btn.classList.add('on');}const _m=$('#main');if(_m)_m.classList.toggle('sideopen',!open);}
 $('#btnEdit').onclick=e=>{editMode=!editMode;e.target.classList.toggle('on',editMode);e.target.textContent='Markieren-Modus: '+(editMode?'an':'aus');$('#editHint').style.display=editMode?'inline':'none';if(editMode){sortMode=false;$('#btnSort').classList.remove('on');$('#btnSort').textContent='Sortieren: aus';selId=null;}render();};
 $('#btnSort').onclick=e=>{sortMode=!sortMode;e.target.classList.toggle('on',sortMode);e.target.textContent='Sortieren: '+(sortMode?'an (ziehen)':'aus');if(sortMode){editMode=false;$('#btnEdit').classList.remove('on');$('#btnEdit').textContent='Markieren-Modus: aus';$('#editHint').style.display='none';}render();};
+$('#btnAutoSort').onclick=()=>{if(!state.families.length){alert('Es gibt noch keine Familien zum Sortieren.');return;}if(!confirm('Die Liste im Tool wird nach Familien gruppiert – verbundene Familien nebeneinander, Songs ohne Familie ans Ende.\n\nDie Spotify-Playlist bleibt unveraendert, bis du im Reiter Spotify „Reihenfolge speichern" klickst. Rueckgaengig mit Strg/Cmd+Z.\n\nFortfahren?'))return;autoSortFamilies();};
 $('#btnFamPanel').onclick=e=>{togglePanel('#famPanel',e.target);if($('#famPanel').style.display==='block')buildFam();};
 $('#btnCheck').onclick=e=>{togglePanel('#checkPanel',e.target);if($('#checkPanel').style.display==='block')buildCheck();};
 $('#btnGraph').onclick=e=>{togglePanel('#graphPanel',e.target);if(graphVisible())buildGraph();};

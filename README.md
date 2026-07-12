@@ -67,8 +67,13 @@ exportieren** sichern.
   `gist`) einfügen → *Neuen Gist erstellen*; auf weiteren Geräten dieselbe **Gist-ID**.
 - **Auto-Backup** zusätzlich in eine lokale Datei (Chrome/Edge) und als JSON-Export.
 
-## Hinweis: Zurückschreiben nach Spotify
-Seit Spotifys API-Migration (Feb/März 2026) ist das **Ändern** von Playlists für persönliche
-Development-Mode-Apps gesperrt. **Laden** (alle Titel) funktioniert weiter über den neuen
-Endpunkt `/playlists/{id}/items`. Die umsortierte Reihenfolge wendest du daher über
-**Export → Track-URIs** manuell in Spotify an.
+## Zurückschreiben nach Spotify
+Nach dem Umsortieren im Tool schreibst du die Reihenfolge mit **„Reihenfolge speichern ⤒“**
+direkt zurück in deine Playlist. Voraussetzungen: die Playlist gehört dir, dein Konto ist in
+der Spotify-App unter *User Management* eingetragen, du bist mit Schreibrechten verbunden
+(sonst „Trennen“ und neu verbinden) und dein Konto hat aktiv **Spotify Premium**. Technisch
+läuft es über `PUT /playlists/{id}/items` (erste 100 Titel) plus `POST /playlists/{id}/items`
+(weitere in 100er-Blöcken) – seit der Feb-2026-Migration heißen die Endpunkte `/items` statt
+`/tracks`, das Umsortieren eigener Playlists bleibt aber erlaubt.
+
+> Vor dem ersten Zurückschreiben einmal **Export → JSON/CSV** ziehen – so ist jeder Stand wiederherstellbar.

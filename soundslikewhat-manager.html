@@ -621,7 +621,7 @@ async function spSave(){
   if(!confirm('Die Playlist wird mit der aktuellen Reihenfolge ('+uris.length+' Titel) überschrieben.\n\nTipp: vorher unter „Export → JSON/CSV“ ein Backup ziehen.\n\nFortfahren?'))return;
   const pid=state.cfg.playlistId.trim();spMsg('Speichere… (Schritt 1)');
   let r=await api('https://api.spotify.com/v1/playlists/'+pid+'/items',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({uris:uris.slice(0,100)})});
-  if(!r||!r.ok){spMsg('Fehler beim Schreiben ('+(r?r.status:'?')+')'+await errMsg(r)+(r&&r.status===403?' — Spotify erlaubt seit Feb 2026 KEIN Zurückschreiben für persönliche Development-Mode-Apps (nur Lesen). Wende die Reihenfolge über „Export → Track-URIs“ manuell an.':'')+'');return;}
+  if(!r||!r.ok){spMsg('Fehler beim Schreiben ('+(r?r.status:'?')+')'+await errMsg(r)+(r&&r.status===403?' — 403: Prüfe, dass (1) die Playlist DIR gehört, (2) dein Konto in der Spotify-App unter „User Management“ steht, (3) du mit Schreibrechten verbunden bist (ggf. „Trennen“ und neu verbinden) und (4) dein Konto aktiv Spotify Premium hat.':'')+'');return;}
   let step=1;
   for(let i=100;i<uris.length;i+=100){step++;spMsg('Speichere… (Schritt '+step+')');r=await api('https://api.spotify.com/v1/playlists/'+pid+'/items',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uris:uris.slice(i,i+100)})});if(!r||!r.ok){spMsg('Fehler bei Batch ab Position '+i+' ('+(r?r.status:'?')+')'+await errMsg(r)+hint403(r));return;}}
   spMsg('Gespeichert ✓ – die Reihenfolge steht jetzt so in Spotify.');
